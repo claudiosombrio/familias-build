@@ -35,6 +35,7 @@
   <preference name='phonegap-version' value='cli-5.1.1' />	
 
   <gap:plugin name="com.brodysoft.sqliteplugin" version="1.0.4" />
+  <gap:plugin name="com.plugin.datepicker" version="0.4.0" />
   <gap:platform name="ios" />
   <gap:platform name="android" />
   <gap:platform name="winphone" />
