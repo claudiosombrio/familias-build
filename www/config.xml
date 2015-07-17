@@ -32,4 +32,6 @@
   <icon src="resources/android/icon/drawable-xhdpi-icon.png"/>
   <preference name="SplashScreen" value="screen"/>
   <preference name="SplashScreenDelay" value="30000"/>
+
+  <gap:plugin name="com.brodysoft.sqliteplugin" version="1.0.4" />
 </widget>
