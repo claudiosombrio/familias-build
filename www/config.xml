@@ -25,7 +25,7 @@
   <gap:plugin name="org.apache.cordova.network-information" version="0.2.12" />
   <gap:plugin name="org.apache.cordova.splashscreen" version="0.3.4" />
   <gap:plugin name="uk.co.whiteoctober.cordova.appversion" version="0.1.4" />
-  <gap:plugin name="org.apache.cordova.file-transfer" version="0.4.6" />
+  <gap:plugin name="com.coconutcenter.file-transfer" version="0.4.6" />
 
   <gap:platform name="ios" />
   <gap:platform name="android" />
