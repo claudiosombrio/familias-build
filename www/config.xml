@@ -33,7 +33,7 @@
   <preference name="SplashScreen" value="screen"/>
   <preference name="SplashScreenDelay" value="30000"/>
 
-  <gap:plugin name="com.brodysoft.sqliteplugin" version="1.0.4" />
+  <!--gap:plugin name="com.brodysoft.sqliteplugin" version="1.0.4" /-->
   <gap:platform name="ios" />
   <gap:platform name="android" />
   <gap:platform name="winphone" />
