@@ -34,8 +34,8 @@
   <preference name="SplashScreenDelay" value="30000"/>
   <preference name='phonegap-version' value='cli-5.1.1' />	
 
-  <!--gap:plugin name="com.brodysoft.sqliteplugin" version="1.0.4" /-->
-  <!--gap:platform name="ios" /-->
+  <gap:plugin name="com.brodysoft.sqliteplugin" version="1.0.4" />
+  <gap:platform name="ios" />
   <gap:platform name="android" />
-  <!--gap:platform name="winphone" /-->
+  <gap:platform name="winphone" />
 </widget>
