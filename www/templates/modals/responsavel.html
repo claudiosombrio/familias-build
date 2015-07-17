@@ -1,0 +1,26 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Selecione o Responsável</h1>
+        <a class="button button-icon icon ion-close" on-tap="closeModalResponsavel()"></a>
+    </ion-header-bar>
+    <ion-header-bar class="bar-subheader item-input-inset">
+        <label class="item-input-wrapper">
+            <i class="icon ion-android-search placeholder-icon"></i>
+            <input ng-change="buscarResponsavel()" ng-model="bindResponsavel.criterioResponsavel" type="search" placeholder="Procurar" />
+        </label>
+    </ion-header-bar>    
+
+    <ion-content delegate-handle="contentResponsavel">
+        <div class="list">
+            <a class="item" on-tap="responsavelSelecionado(item)" bindonce ng-repeat="item in bindResponsavel.responsaveis" >
+                <h2>{{item.nome}}</h2>
+            </a>
+            <ion-infinite-scroll
+                ng-if="bindResponsavel.canLoadResponsavel"
+                icon="ion-loading-c"
+                on-infinite="loadResponsavel()"
+                distance="1%">
+            </ion-infinite-scroll>        
+        </div>    
+    </ion-content>
+</ion-modal-view>

@@ -1,0 +1,53 @@
+<ion-view ng-controller="individuosCtrl" attach-to-window="true">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+    </ion-header-bar>
+    <div class="list has-header">
+        <label class="item item-input item-stacked-label" on-tap="changeDataNascimento()">
+            <div>Data de Nascimento</div>
+            <span class="input-label">{{dataNascimento | date:'dd/MM/yyyy'}}</span>
+            <!--<i ng-if="dataNascimento" class="icon ion-ios7-close" on-tap="limparDataNascimento();$event.stopPropagation()" ></i>-->
+        </label>
+        <div class="item item-input-inset">
+            <div class="item-input-wrapper" style="max-width: 170px; margin-right: 5px; overflow: hidden;">
+                <i class="icon ion-android-search placeholder-icon"></i>
+                <input ng-change="buscar()" ng-model="filtroCodigo" type="search" placeholder="Código"/>
+            </div>
+            <div class="item-input-wrapper">
+                <i class="icon ion-android-search placeholder-icon"></i>
+                <input ng-change="buscar()" ng-model="filtro" type="search" placeholder="Nome / Mãe / CPF"/>
+                <!--<i ng-if="filtro.length > 0" ng-click="limpar()" class="icon icon-right ion-android-close placeholder-icon"></i> NAO FUNCIONOU NO GALAXY TAB-->
+            </div>
+            <a ui-sref="cadastroIndividuos.tabIdentificacao" class="button button-positive">
+                <i class="icon ion-document"></i>
+                Novo
+            </a>
+        </div>        
+    </div>    
+    <ion-content class="c-has-filter" >
+        <div class="list">
+            <div class="card" bindonce ng-repeat="item in itens">
+                <a style="white-space: nowrap;" class="item item-thumbnail-left" ui-sref='cadastroIndividuos.tabIdentificacao({idIndividuo: item.id})'>
+                    <img ng-src="{{definirAvatar(item)}}">
+                    <h2 bo-text="item.nome"></h2>
+                    <div class="row" style="padding: 0px;">
+                        <p class="col" style="padding: 0px;" >Mãe: {{item.nomeMae}}</p>
+                        <p class="col-offset-10" bo-text="item.dataNascimento"></p>
+                    </div>
+                    <div>
+                        <p style="color: green;" ng-if="item.situacao == 0">{{descricaoSituacao(item)}}</p>
+                        <p style="color: red;" ng-if="item.situacao == 3">{{descricaoSituacao(item)}}</p>
+                        <p style="color: blue;" ng-if="item.situacao != 0 && item.situacao != 3">{{descricaoSituacao(item)}}</p>
+                    </div>
+                </a>
+            </div>
+            <ion-infinite-scroll
+                ng-if="canLoad"
+                icon="ion-loading-c"
+                on-infinite="loadMoreData()"
+                distance="1%">
+            </ion-infinite-scroll>        
+        </div>    
+    </ion-content>
+</ion-view>

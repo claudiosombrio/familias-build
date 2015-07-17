@@ -1,0 +1,223 @@
+<ion-view>
+    <ion-content padding="true">
+            <!--        <p>Profissional: Maria da Rosa e Silva</p>
+                    <label>Área/M. Área: Bairro São João / 7</label>-->
+            <div class="list">
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Profissional Responsável</span>
+                    <input type="text" disabled ng-model="paciente.nomeProfissional"/>
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Área | MicroÁrea</span>
+                    <input type="text" disabled ng-model="paciente.descricaoArea"/>
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Domicílio</span>
+                    <input type="text" disabled ng-model="paciente.numeroDomicilio">
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Código</span>
+                    <input type="text" disabled ng-model="paciente.codigoSistema">
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Cartão SUS</span>
+                    <input name="cns" type="tel" ng-model="paciente.numeroCartao" ng-cns ui-mask="999.9999.9999.9999">
+                    <span ng-if="paciente.numeroCartao.length > 0 && !form.cns.$valid" class="c-errorMsg">Número inválido</span>
+                </label>
+                <label class="item item-input item-select">
+                    <div class="c-required input-label c-input-title c-input-full-content">
+                        Situação
+                    </div>
+                    <select ng-model="paciente.situacao">
+                        <option value="0" label="Ativo" ></option>
+                        <option value="2" label="Inativo" ></option>
+                        <option value="3" label="Excluído" ></option>
+                    </select>
+                </label>
+                <label class="item item-input item-select" ng-if="paciente.situacao == 2 || paciente.situacao == 3">
+                    <div class="c-required input-label c-input-title c-input-full-content">
+                        Motivo da Inativação/Exclusão
+                    </div>
+                    <select ng-model="paciente.motivoExclusao">
+                        <option value="" label="" ></option>
+                        <option value="1" label="Duplicado" ></option>
+                        <option value="2" label="Erro de Cadastro" ></option>
+                        <option value="135" label="Óbito" ></option>
+                        <option value="136" label="Mudança de Território" ></option>
+                    </select>
+                </label>
+                <li class="item item-checkbox">
+                    <label class="checkbox">
+                        <input type="checkbox" ng-model="paciente.flagResponsavelFamiliar" ng-true-value="1" ng-false-value="0" >
+                    </label>
+                    <div class="input-label c-input-full-content c-input-title">É o Responsável Familiar?</div>
+                </li>
+                <label class="item item-input item-stacked-label" ng-if="paciente.flagResponsavelFamiliar !== 1" on-tap="selecionarResponsavel()">
+                    <span class="input-label c-input-full-content c-input-title">Quem é o Responsável Familiar?</span>
+                    <input type="text" disabled ng-model="paciente.nomeResponsavel">
+                </label>
+                <label class="item item-input item-select" ng-if="paciente.flagResponsavelFamiliar !== 1 && paciente.codigoResponsavelFamiliar">
+                    <div class="input-label c-input-title c-input-full-content">
+                        Grau de Parentesco com o Responsável
+                    </div>
+                    <select ng-model="pacienteEsus.parentescoResponsavel">
+                        <option label="" ></option>
+                        <option value="137" label="Conjuge ou Companheiro" ></option>
+                        <option value="138" label="Filho" ></option>
+                        <option value="139" label="Enteado" ></option>
+                        <option value="140" label="Neto ou Bisneto" ></option>
+                        <option value="141" label="Pai ou Mãe" ></option>
+                        <option value="142" label="Sogro" ></option>
+                        <option value="143" label="Irmão ou Irmã" ></option>
+                        <option value="144" label="Genro ou Nora" ></option>
+                        <option value="145" label="Outro Parente" ></option>
+                        <option value="146" label="Não é Parente" ></option>
+                    </select>
+                </label>            
+                <label class="item item-input item-stacked-label" on-tap="changeResideDesde()" ng-if="paciente.flagResponsavelFamiliar === 1">
+                    <div class="c-input-title">Reside Desde</div>
+                    <div class="input-label">
+                        <span >{{paciente.resideDesde| date:'dd/MM/yyyy'}}</span>
+                        <i ng-if="paciente.resideDesde" class="icon ion-ios7-close" on-tap="limparResideDesde();$event.stopPropagation()" ></i>
+                    </div>
+                </label>
+                <label class="item item-input item-stacked-label" ng-if="paciente.flagResponsavelFamiliar === 1">
+                    <span class="input-label c-input-full-content c-input-title">Prontuário</span>
+                    <input c-max-length="30" class="c-upper" type="text" ng-model="paciente.prontuario">
+                </label>
+                <label class="item item-input item-select" ng-if="paciente.flagResponsavelFamiliar === 1">
+                    <div class="input-label c-input-title c-input-full-content">
+                        Renda Familiar (Salário Mínimo)?
+                    </div>
+                    <select ng-model="paciente.rendaFamiliar">
+                        <option label="" ></option>
+                        <option value="1" label="1/4 (um quarto)" ></option>
+                        <option value="2" label="1/2 (meio)" ></option>
+                        <option value="3" label="1 (um)" ></option>
+                        <option value="4" label="2 (dois)" ></option>
+                        <option value="5" label="4 (quatro)" ></option>
+                        <option value="6" label="+4 (mais que quatro)" ></option>
+                    </select>
+                </label>            
+                <label class="item item-input item-stacked-label">
+                    <span class="c-required input-label c-input-full-content c-input-title">Nome Completo</span>
+                    <input c-max-length="70" class="c-upper" type="text" ng-model="paciente.nome">
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Apelido / Nome Social</span>
+                    <input c-max-length="50" type="text" ng-model="paciente.apelido">
+                </label>
+                <label class="item item-input item-stacked-label" on-tap="changeDataNascimento()">
+                    <div class="c-required c-input-title">Data de Nascimento</div>
+                    <div class="input-label">
+                        <span >{{paciente.dataNascimento| date:'dd/MM/yyyy'}}</span>
+                        <i ng-if="paciente.dataNascimento" class="icon ion-ios7-close" on-tap="limparDataNascimento();$event.stopPropagation()" ></i>
+                    </div>
+                </label>
+
+                <label class="item item-input item-select">
+                    <div class="c-required input-label c-input-title">
+                        Sexo
+                    </div>
+                    <select ng-model="paciente.sexo">
+                        <option value="M" label="Masculino" ></option>
+                        <option value="F" label="Feminino" ></option>
+                    </select>
+                </label>            
+
+                <label class="item item-input item-select">
+                    <div class="c-required input-label c-input-title">
+                        Raça/Cor
+                    </div>
+                    <select ng-model="paciente.codigoRaca" ng-options="item.id as item.descricao for item in racas" ng-change="habilitarEtnia()">
+                        <option selected label=""></option>
+                    </select>
+                </label>
+
+                <label class="item item-input item-stacked-label" on-tap="selecionarEtniaIndigena()" ng-if="bind.exibeEtnia">
+                    <div class="c-input-title">
+                        Etnia Indígena
+                    </div>
+                    <div class="input-label">
+                        <!--<i ng-if="paciente.codigoEtniaIndigena" class="icon ion-ios7-close" on-tap="limparPais();$event.stopPropagation()" ></i>-->
+                        <span >{{paciente.descricaoEtniaIndigena}}</span>
+                    </div>
+                </label>            
+
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Nº PIS/PASEP</span>
+                    <input c-max-length="13" type="tel" ng-model="paciente.numeroPis">
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Nº NIS</span>
+                    <input c-max-length="20" type="tel" ng-model="paciente.nis">
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="c-required input-label c-input-full-content c-input-title">Nome Completo da Mãe</span>
+                    <input c-max-length="70" class="c-upper" type="text" ng-model="paciente.nomeMae">
+                </label>
+
+                <label class="item item-input item-select">
+                    <div class="c-required input-label c-input-title">
+                        Nacionalidade
+                    </div>
+                    <select ng-model="paciente.nacionalidade">
+                        <option selected label="Selecione a Nacionalidade"></option>
+                        <option value="1" label="Brasileiro"></option>
+                        <option value="2" label="Naturalizado"></option>
+                        <option value="3" label="Estrangeiro"></option>
+                    </select>
+                </label>            
+
+                <label class="item item-input item-stacked-label" on-tap="selecionarPais()">
+                    <div class="c-input-title">
+                        País de Nascimento
+                    </div>
+                    <div class="input-label">
+                        <i ng-if="paciente.codigoPais" class="icon ion-ios7-close" on-tap="limparPais();$event.stopPropagation()" ></i>
+                        <span >{{paciente.descricaoPais}}</span>
+                    </div>
+                </label>            
+
+                <label class="item item-input item-stacked-label" on-tap="selecionarCidade()">
+                    <div class="c-input-title">
+                        Cidade de Nascimento
+                    </div>
+                    <div class="input-label">
+                        <i ng-if="paciente.codigoCidade" class="icon ion-ios7-close" on-tap="limparCidade();$event.stopPropagation()" ></i>
+                        <span >{{paciente.descricaoCidade}}</span>
+                    </div>
+                </label>            
+
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Celular</span>
+                    <input name="celular" c-telefone type="tel" ng-model="paciente.celular">
+                    <span ng-if="paciente.celular.length > 0 && !form.celular.$valid" class="c-errorMsg">Número inválido</span>
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Telefone</span>
+                    <input name="telefone" c-telefone type="tel" ng-model="paciente.telefone">
+                    <span ng-if="paciente.telefone.length > 0 && !form.telefone.$valid" class="c-errorMsg">Número inválido</span>
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Telefone 2</span>
+                    <input name="telefone2" c-telefone type="tel" ng-model="paciente.telefone2">
+                    <span ng-if="paciente.telefone2.length > 0 && !form.telefone2.$valid" class="c-errorMsg">Número inválido</span>
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Telefone 3</span>
+                    <input  type="text" c-max-length="15" ng-model="paciente.telefone3">
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Telefone 4</span>
+                    <input type="text" c-max-length="15" ng-model="paciente.telefone4">
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Email</span>
+                    <input c-max-length="100" type="email" ng-model="paciente.email">
+                </label>
+            </div>        
+    </ion-content>
+</ion-view>
+
+

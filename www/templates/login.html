@@ -1,0 +1,24 @@
+<ion-view ng-controller="loginCtrl">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <h1 class="title">{{tituloPrincipal}}</h1>
+    </ion-header-bar>
+    <ion-content padding="true">
+        <h4 class="center">Autentique-se para utilizar o sistema.</h4>
+        <div class="list">
+            <label class="item item-input item-stacked-label">
+                <span class="input-label">Usuário</span>
+                <input ng-model="usuario" type="text" placeholder="">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label">Senha</span>
+                <input ng-model="senha" type="password" >
+            </label>
+        </div>        
+
+        <button on-tap="actAutenticar()" class="button button-block button-balanced">
+            Autenticar
+        </button>    
+    </ion-content>
+</ion-view>
+
+

@@ -1,0 +1,20 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Selecione a Vacina</h1>
+        <a class="button button-icon icon ion-close" on-tap="closeModalTipoVacina()"></a>
+    </ion-header-bar>
+    <ion-header-bar class="bar-subheader item-input-inset">
+        <label class="item-input-wrapper">
+            <i class="icon ion-android-search placeholder-icon"></i>
+            <input ng-model="bind.criterioTipoVacina" type="search" placeholder="Procurar" />
+        </label>
+    </ion-header-bar>    
+
+    <ion-content>
+        <div class="list">
+            <a class="item" on-tap="tipoVacinaSelecionada(item)" ng-repeat="item in bind.tiposVacina |  filter:bind.criterioTipoVacina" >
+                <h2>{{item.descricao}}</h2>
+            </a>
+        </div>    
+    </ion-content>
+</ion-modal-view>

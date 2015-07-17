@@ -1,0 +1,36 @@
+<ion-view ng-controller="novaVacinaCtrl" attach-to-window="true">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+        <button class="button icon-left ion-checkmark-round" on-tap="acaoSalvar()">Salvar</button>
+    </ion-header-bar>
+    <ion-content padding="true">
+        <div class="list">
+            <label class="item item-input item-stacked-label" on-tap="selecionarTipoVacina()">
+                <div class="c-required c-input-title">
+                    Vacina
+                </div>
+                <div class="input-label">
+                    <i ng-if="bind.tipoVacina.id" class="icon ion-ios7-close" on-tap="limparTipoVacina();$event.stopPropagation()" ></i>
+                    <span >{{bind.tipoVacina.descricao}}</span>
+                </div>
+            </label>            
+            <label class="item item-input item-stacked-label" on-tap="changeDataAplicacao()">
+                <div class="c-required c-input-title">Data de Aplicação</div>
+                <div class="input-label">
+                    <span >{{bind.dataAplicacao | date:'dd/MM/yyyy'}}</span>
+                    <i ng-if="bind.dataAplicacao" class="icon ion-ios7-close" on-tap="limparDataAplicacao();$event.stopPropagation()" ></i>
+                </div>
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Lote</span>
+                <input c-max-length="10" type="text" ng-model="bind.lote">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Observações</span>
+                <!--<input c-max-length="100" type="text" ng-model="bind.observacao">-->
+                <textarea c-max-length="100" ng-model="bind.observacao"></textarea>
+            </label>
+        </div>
+    </ion-content>
+</ion-view>

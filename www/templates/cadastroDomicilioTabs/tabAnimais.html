@@ -1,0 +1,48 @@
+<ion-view>
+    <ion-content padding="true">
+        <!--        <p>Profissional: Maria da Rosa e Silva</p>
+                <label>Área/M. Área: Bairro São João / 7</label>-->
+        <div class="list">
+            <div class="item item-divider">
+                Animais no Domicílio
+            </div>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="domicilioEsus.gato" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Gato?</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="domicilioEsus.cachorro" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Cachorro?</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="domicilioEsus.passaro" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Pássaro?</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="domicilioEsus.criacao" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Criação (porco, galinha...)?</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="domicilioEsus.outros" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Outros?</div>
+            </li>            
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Quantos?</span>
+                <input type="number" ng-model="domicilioEsus.quantos">
+            </label>
+
+        </div>        
+    </ion-content>
+</ion-view>
+
+

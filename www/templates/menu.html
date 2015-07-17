@@ -1,0 +1,71 @@
+<ion-view ng-controller="menuCtrl">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left button-light ion-power" on-tap="acaoSair()" ng-if="verBotaoSair">Sair</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+<!--        <button class="button button-clear" ng-if="verPendencias" on-tap="acaoPendencias()">
+            Pendências<span class="badge badge-assertive">{{bind.inconsistencias}}</span>
+        </button>-->
+    </ion-header-bar>
+    <ion-content padding="true" class="has-subfooter">
+        <div class="row">
+            <div class="col col-50">
+
+                <a on-tap="goDomicilios()" class="link-image center">
+                    <figure>
+                        <img src="imagens/home_96x96.png"/>
+                        <figcaption>Domicílios</figcaption>
+                    </figure>
+                </a>
+            </div>
+            <div class="col col-50">
+                <a on-tap="goIndividuos()" class="link-image center">
+                    <figure>
+                        <img src="imagens/person_96x96.png"/>
+                        <figcaption>Indivíduos</figcaption>
+                    </figure>
+                </a>
+            </div>
+        </div>
+        <div class="row padding-icons">
+            <div class="col col-50">
+                <a on-tap="goVisitas()" class="link-image center">
+                    <figure>
+                        <img src="imagens/clipboard_96x96.png"/>
+                        <figcaption>Visitas</figcaption>
+                    </figure>
+                </a>
+            </div>
+            <div class="col col-50">
+                <a on-tap="goSincronizacao()" class="link-image center">
+                    <figure>
+                        <img src="imagens/synchronize_96x96.png"/>
+                        <figcaption>Sincronizar</figcaption>
+                    </figure>
+                </a>
+            </div>
+        </div>
+        <div class="row padding-icons">
+            <div class="col col-50">
+                <a on-tap="acaoPendencias()" ng-if="verPendencias" class="link-image center">
+                    <figure>
+                        <img src="imagens/warning_96x96.png"/>
+                        <figcaption>Pendências <span class="badge badge-assertive">{{bind.inconsistencias}}</span></figcaption>
+                    </figure>
+                </a>
+            </div>
+        </div>
+    </ion-content>
+    <p style="bottom: 44px;position: absolute;right: 4px;z-index: 10;margin-bottom: 0px;" ng-if="bind.versaoLocal">Versão {{bind.versaoLocal}}</p>
+    <ion-subfooter-bar class="bar-light c-no-wrap bar bar-subfooter" ng-if="alerta">
+        <p style="color: red;">{{alerta}}</p>
+    </ion-subfooter-bar>
+    <ion-footer-bar class="bar-positive c-no-wrap">
+        <div>
+            <div>{{usuario.nome}}</div>
+            <div ng-if="area">Área: {{area}} | Microárea: {{microArea}}</div>
+            </span>
+    </ion-footer-bar>
+
+</ion-view>
+
+

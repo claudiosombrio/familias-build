@@ -1,0 +1,68 @@
+<ion-view>
+    <ion-content padding="true">
+        <!--        <p>Profissional: Maria da Rosa e Silva</p>
+                <label>Área/M. Área: Bairro São João / 7</label>-->
+        <div class="list">
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Profissional Responsável</span>
+                <input type="text" disabled ng-model="domicilio.nomeProfissional"/>
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Área | MicroÁrea</span>
+                <input type="text" disabled ng-model="domicilio.descricaoArea"/>
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Código do Domicílio</span>
+                <input type="text" disabled ng-model="domicilio.codigoSistema"/>
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="c-required input-label c-input-full-content c-input-title">Nº da Família</span>
+                <input c-max-length="3" type="number" ng-model="domicilio.numeroFamilia"/>
+            </label>
+            <label class="item item-input item-stacked-label" on-tap="selecionarTipoLogradouro()">
+                <div class="c-required c-input-title">
+                    Tipo de Logradouro
+                </div>
+                <div class="input-label">
+                    <i ng-if="domicilio.codigoTipoLogradouro" class="icon ion-ios7-close" on-tap="limparTipoLogradouro();$event.stopPropagation()" ></i>
+                    <span >{{domicilio.descricaoTipoLogradouro}}</span>
+                </div>
+            </label>            
+            <label class="item item-input item-stacked-label">
+                <span class="c-required input-label c-input-full-content c-input-title">Logradouro</span>
+                <input c-max-length="50" class="c-upper" type="text" ng-model="domicilio.logradouro">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Complemento</span>
+                <input c-max-length="50" class="c-upper" type="text" ng-model="domicilio.complementoLogradouro">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="c-required input-label c-input-full-content c-input-title">Nº</span>
+                <input class="c-upper" c-max-length="7" type="text" ng-model="domicilio.numeroLogradouro">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="c-required input-label c-input-full-content c-input-title">Bairro</span>
+                <input c-max-length="30" class="c-upper" type="text" ng-model="domicilio.bairro">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Ponto de Referência</span>
+                <input c-max-length="60" class="c-upper" type="text" ng-model="domicilio.pontoReferencia">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="c-required input-label c-input-full-content c-input-title">CEP</span>
+                <input ui-mask="99.999-999" type="tel" ng-model="domicilio.cep">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Telefone</span>
+                <input c-telefone type="tel" ng-model="domicilio.telefone">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Telefone de Referência</span>
+                <input c-telefone type="tel" ng-model="domicilio.telefoneReferencia">
+            </label>
+
+        </div>        
+    </ion-content>
+</ion-view>
+
+

@@ -1,0 +1,27 @@
+<ion-view >
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+        <button class="button icon-left ion-checkmark-round" ng-if="verBotaoSalvar" on-tap="acaoSalvar()">Salvar</button>
+    </ion-header-bar>
+    <ion-tabs class="tabs-top tabs-background-positive tabs-color-light tabs-positive tabs-icon-only">
+        <ion-tab title="Visita" icon-on="ion-ios7-location" icon-off="ion-ios7-location" href="#/cadastroVisitas/{{bind.idDomicilio}}/cadastroVisitaTabs/tabVisita">
+            <ion-nav-view name="tab-Visita"></ion-nav-view>
+        </ion-tab>
+
+        <ion-tab title="Motivo" icon-on="ion-ios7-medkit" icon-off="ion-ios7-medkit" href="#/cadastroVisitas/{{bind.idDomicilio}}/cadastroVisitaTabs/tabMotivo">
+            <ion-nav-view name="tab-Motivo"></ion-nav-view>
+        </ion-tab>
+        
+        <ion-tab title="Desfecho" icon-on="ion-ios7-flag" icon-off="ion-ios7-flag" href="#/cadastroVisitas/{{bind.idDomicilio}}/cadastroVisitaTabs/tabDesfecho">
+            <ion-nav-view name="tab-Desfecho"></ion-nav-view>
+        </ion-tab>
+        
+        <ion-tab title="Indivíduos" badge="bind.notificacoes" badge-style="badge-assertive" icon-on="ion-ios7-people" icon-off="ion-ios7-people" href="#/cadastroVisitas/{{bind.idDomicilio}}/cadastroVisitaTabs/tabIndividuos">
+            <ion-nav-view name="tab-Individuos"></ion-nav-view>
+        </ion-tab>
+        
+    </ion-tabs>
+</ion-view>
+
+

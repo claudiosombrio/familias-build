@@ -1,0 +1,26 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Selecione a Etnia Indígena</h1>
+        <a class="button button-icon icon ion-close" on-tap="closeModalEtniaIndigena()"></a>
+    </ion-header-bar>
+    <ion-header-bar class="bar-subheader item-input-inset">
+        <label class="item-input-wrapper">
+            <i class="icon ion-android-search placeholder-icon"></i>
+            <input ng-change="buscarEtniaIndigena()" ng-model="bindEtniaIndigena.criterioEtniaIndigena" type="search" placeholder="Procurar" />
+        </label>
+    </ion-header-bar>    
+
+    <ion-content delegate-handle="contentEtniaIndigena">
+        <div class="list">
+            <a class="item" on-tap="EtniaIndigenaSelecionada(item)" bindonce ng-repeat="item in bindEtniaIndigena.etnias" >
+                <h2>{{item.descricao}}</h2>
+            </a>
+            <ion-infinite-scroll
+                ng-if="bindEtniaIndigena.canLoadEtniaIndigena"
+                icon="ion-loading-c"
+                on-infinite="loadEtniaIndigena()"
+                distance="1%">
+            </ion-infinite-scroll>        
+        </div>    
+    </ion-content>
+</ion-modal-view>

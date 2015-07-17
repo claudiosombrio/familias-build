@@ -1,0 +1,88 @@
+<ion-view>
+    <ion-content padding="true">
+        <div class="list">
+            <div class="item item-divider">
+                CPF
+            </div>            
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Número do CPF</span>
+                <input name="numeroCpf" type="tel" ng-model="documentosBind.numeroCpf" ng-cpf ui-mask="999.999.999-99" >
+                <span ng-if="documentosBind.numeroCpf.length > 0 && !form.numeroCpf.$valid" class="c-errorMsg">CPF inválido</span>
+            </label>
+            <div class="item item-divider">
+                Identidade
+            </div>            
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Número da Identidade</span>
+                <input c-max-length="13" type="tel" ng-model="documentosBind.numeroRg">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Complemento</span>
+                <input c-max-length="4" class="c-upper" type="text" ng-model="documentosBind.complementoRg">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">UF</span>
+                <input c-max-length="2" class="c-upper" type="text" ng-maxlength="2" ng-model="documentosBind.ufRg">
+            </label>
+            <label class="item item-input item-stacked-label" on-tap="changeDataEmissaoRg()">
+                <div class="c-input-title">Data de Emissão</div>
+                <div class="input-label">
+                    <span >{{documentosBind.dataEmissaoRg| date:'dd/MM/yyyy'}}</span>
+                    <i ng-if="documentosBind.dataEmissaoRg" class="icon ion-ios7-close" on-tap="limparDataEmissaoRg();$event.stopPropagation()" ></i>
+                </div>
+            </label>
+            <label class="item item-input item-stacked-label" on-tap="selecionarOrgaoEmissor()">
+                <div class="c-input-title">
+                    Orgão Emissor
+                </div>
+                <div class="input-label">
+                    <i ng-if="documentosBind.codigoOrgaoEmissorRg" class="icon ion-ios7-close" on-tap="limparOrgaoEmissor();$event.stopPropagation()" ></i>
+                    <span ng-if="documentosBind.siglaOrgaoEmissorRg">({{documentosBind.siglaOrgaoEmissorRg}}) {{documentosBind.descricaoOrgaoEmissorRg}}</span>
+                </div>
+            </label>            
+            <div class="item item-divider">
+                Certidão
+            </div>            
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Matrícula</span>
+                <input ui-mask="999999.99.99.9999.9.99999.999.9999999.99" type="tel" ng-model="documentosBind.numeroMatriculaCertidao">
+            </label>
+            <label class="item item-input item-select">
+                <div class="input-label c-input-title">
+                    Tipo de Certidão
+                </div>
+                <select ng-change="descricaoTipoCertidao()" ng-model="documentosBind.tipoDocumentoCertidao">
+                    <option label="" ></option>
+                    <option value="91" label="Certidão de Nascimento" ></option>
+                    <option value="92" label="Certidão de Casamento" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Folha</span>
+                <input c-max-length="4" class="c-upper" type="text" ng-model="documentosBind.numeroFolhaCertidao">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Termo</span>
+                <input c-max-length="8" class="c-upper" type="text" ng-model="documentosBind.numeroTermoCertidao">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Livro</span>
+                <input c-max-length="8" class="c-upper" type="text" ng-model="documentosBind.numeroLivroCertidao">
+            </label>
+
+            <label class="item item-input item-stacked-label" on-tap="changeDataEmissaoCertidao()">
+                <div class="c-input-title">Data de Emissão</div>
+                <div class="input-label">
+                    <span >{{documentosBind.dataEmissaoCertidao| date:'dd/MM/yyyy'}}</span>
+                    <i ng-if="documentosBind.dataEmissaoCertidao" class="icon ion-ios7-close" on-tap="limparDataEmissaoCertidao();$event.stopPropagation()" ></i>
+                </div>
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Cartório</span>
+                <input c-max-length="20" class="c-upper" type="text" ng-model="documentosBind.numeroCartorioCertidao">
+            </label>
+        </div>        
+    </ion-content>
+</ion-view>
+
+

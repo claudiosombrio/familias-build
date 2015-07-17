@@ -1,0 +1,33 @@
+<ion-view ng-controller="cadastroIndividuoCtrl">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+        <button class="button icon-left ion-checkmark-round" ng-if="verBotaoSalvar" on-tap="acaoSalvar()">Salvar</button>
+    </ion-header-bar>
+    <form name="form">
+        <ion-tabs class="tabs-top tabs-background-positive tabs-color-light tabs-positive tabs-icon-only">
+            <ion-tab title="Identificação" icon-on="ion-ios7-person" icon-off="ion-ios7-person" href="#/cadastroIndividuos/{{bind.idIndividuo}}/cadastroIndividuoTabs/tabIdentificacao">
+                <ion-nav-view name="tab-Identificacao"></ion-nav-view>
+            </ion-tab>
+
+            <ion-tab title="Inf. Sociodemográficas" icon-on="ion-ios7-pie" icon-off="ion-ios7-pie" href="#/cadastroIndividuos/{{bind.idIndividuo}}/cadastroIndividuoTabs/tabInfoSocio">
+                <ion-nav-view name="tab-InfoSocio"></ion-nav-view>
+            </ion-tab>
+
+            <ion-tab title="Situação de Rua" icon-on="ion-ios7-cloud" icon-off="ion-ios7-cloud" href="#/cadastroIndividuos/{{bind.idIndividuo}}/cadastroIndividuoTabs/tabSituacaoRua">
+                <ion-nav-view name="tab-SituacaoRua"></ion-nav-view>
+            </ion-tab>
+
+            <ion-tab title="Condições de Saúde" icon-on="ion-ios7-pulse-strong" icon-off="ion-ios7-pulse-strong" href="#/cadastroIndividuos/{{bind.idIndividuo}}/cadastroIndividuoTabs/tabCondicoesSaude">
+                <ion-nav-view name="tab-CondicoesSaude"></ion-nav-view>
+            </ion-tab>
+
+            <ion-tab title="Documentos" icon-on="ion-ios7-paper" icon-off="ion-ios7-paper" href="#/cadastroIndividuos/{{bind.idIndividuo}}/cadastroIndividuoTabs/tabDocumentos">
+                <ion-nav-view name="tab-Documentos"></ion-nav-view>
+            </ion-tab>
+
+        </ion-tabs>
+    </form>
+</ion-view>
+
+

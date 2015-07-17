@@ -1,0 +1,36 @@
+<ion-view ng-controller="inconsistenciasCtrl" attach-to-window="true">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+    </ion-header-bar>
+    <ion-content class="has-header" >
+        <div class="list">
+            <div class="card" ng-repeat="item in bind.individuos">
+                <div class="item item-thumbnail-left" style="white-space: nowrap;" on-tap="editarIndividuo(item)">
+                    <img src="imagens/person_96x96.png">
+                    <h2>{{item.nome}}</h2>
+                    <div class="row" style="padding: 0px;">
+                        <p class="col" style="padding: 0px;">Mãe: {{item.nomeMae}}</p>
+                        <p class="col-offset-10">{{item.dataNascimento}}</p>
+                    </div>
+                    <div >
+                        <p style="color: red;">{{item.mensagem}}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card" ng-repeat="item in bind.domicilios">
+                <div class="item item-thumbnail-left" style="white-space: nowrap;" on-tap="editarDomicilio(item)">
+                    <img src="imagens/home_96x96.png">
+                    <h2>{{item.codigoSistema}} - {{item.logradouro}}, {{item.numeroLogradouro}}</h2>
+                    <div class="row" style="padding: 0px;">
+                        <p class="col" style="padding: 0px;">{{item.bairro}} - {{item.complementoLogradouro}}</p>
+                        <p class="col-offset-10">Fam. {{item.numeroFamilia}}</p>
+                    </div>
+                    <div>
+                        <p style="color: red; ">{{item.mensagem}}</p>
+                    </div>
+                </div>
+            </div>
+        </div>    
+    </ion-content>
+</ion-view>

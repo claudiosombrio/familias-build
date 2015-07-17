@@ -1,0 +1,28 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Escolher Doença Cardíaca</h1>
+        <a class="button button-icon icon ion-close" on-tap="fecharDoencaCardiaca()"></a>
+    </ion-header-bar>
+    <ion-content >
+        <div class="list">
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.cardiacaInsuficiencia" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Insufuciência Cardíaca</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.cardiacaOutros" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Outra</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.cardiacaNaoSabe" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Não Sabe</div>
+            </li>            
+        </div>    
+    </ion-content>
+</ion-modal-view>

@@ -1,0 +1,106 @@
+.center{
+    text-align: center;    
+    margin-left: auto;    
+    margin-right: auto;    
+}
+
+.link-image{
+    color: inherit;
+    font-size: 17px;
+    display: table;
+    text-decoration: none;
+    text-align: center;    
+}
+
+.padding-icons{
+    padding-top: 50px !important;
+}
+
+.scroll-loader {
+    background: #f7f7f7;
+    height: 300px;
+    border: 3px solid #d2d2d2;
+    margin-bottom: 20px;
+    overflow: auto;
+    padding: 10px 0;
+    border-radius: .5rem 0 0 .5rem;
+}
+.scroll-loader li {
+    list-style: none;
+    border-bottom: 1px solid #aaa;
+    padding: 5px;
+    margin-bottom: 3px;
+}
+
+.padding-off{
+    padding: 0px;
+}
+
+.c-item-rows{
+    padding: 6px 0 5px 16px;
+}
+
+.c-input-full-content{
+    width: 100%;
+    max-width: 100%;
+}
+
+.c-input-title{
+    font-weight: bold;
+}
+
+.c-item-height{
+    height: 29px;
+    padding-top: 2px;
+    padding-bottom: 3px;
+    display: block;
+}
+
+.c-no-wrap{
+    white-space: nowrap;
+}
+
+.c-has-filter{
+    top: 165px;
+}
+
+.c-bar-large{
+    height: 64px;
+}
+
+/*Nao foi feito uma diretiva pois quebra no genesis 7301*/
+.c-upper{
+    text-transform: uppercase;
+}
+
+.c-errorMsg{
+    color: red;
+}
+
+.c-required:before {
+    content: '* ';
+    color: royalblue;
+}
+
+.c-image-list-thumb {
+    padding: 6px;
+    height: 50px;
+}
+
+.c-button-large-square{
+    height: 52px;
+    width: 52px;    
+}
+
+.c-item-images{
+    padding: 10px 16px 7px 16px;
+    min-height: 72px;
+}
+
+.c-padding-images{
+    padding-top: 140px;
+}
+
+.c-padding-sub-header-info{
+    padding-top: 65px;
+}

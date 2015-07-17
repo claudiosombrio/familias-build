@@ -1,0 +1,163 @@
+<ion-view>
+    <ion-content padding="true">
+        <div class="list">
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.estaGestante" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Está Gestante?</div>
+            </li>
+            <label class="item item-input item-stacked-label" ng-if="pacienteEsus.estaGestante === 1">
+                <span class="input-label c-input-full-content c-input-title">Maternidade de Referência?</span>
+                <input c-max-length="150" type="text" ng-model="pacienteEsus.maternidadeReferencia">
+            </label>
+            <label class="item item-input item-select" >
+                <div class="input-label c-input-title c-input-full-content">
+                    Sobre seu Peso, Você Considera-se?
+                </div>
+                <select ng-model="pacienteEsus.pesoConsiderado">
+                    <option selected></option>
+                    <option value="21" label="Abaixo do Peso" ></option>
+                    <option value="22" label="Peso Adequado" ></option>
+                    <option value="23" label="Acima do Peso" ></option>
+                </select>
+            </label>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.fumante" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">É Fumante?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.dependenteAlcool" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">É Dependente/Abusa de Álcool?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.dependenteDroga" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">É Dependente/Abusa de Drogas?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.temHipertensao" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Tem Hipertensão Arterial?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.temDiabetes" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Tem Diabetes?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.teveAvc" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Teve AVC ou Derrame?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.teveInfarto" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Teve Infarto?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.temHanseniase" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Está com Hanseníase?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.temTuberculose" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Está com Tuberculose?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.temTeveCancer" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Tem ou Teve Câncer?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.internacaoAno" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Alguma Internação no Último Ano?</div>
+            </li>
+            <label class="item item-input item-stacked-label" ng-if="pacienteEsus.internacaoAno === 1">
+                <span class="input-label c-input-full-content c-input-title">Causa da Internação?</span>
+                <input c-max-length="150" type="text" ng-model="pacienteEsus.causaInternacao">
+            </label>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.fezTratamentoPsiquiatrico" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Fez ou Faz Tratamento Psiquiátrico?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.possuiSofrimentoPsiquicoGrave" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Possui Sofrimento Psíquico Grave?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.estaAcamado" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Está Acamado?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.estaDomiciliado" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Está Domiciliado?</div>
+            </li>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.usaPlantasMedicinais" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Usa Plantas Medicinais?</div>
+            </li>
+            <label class="item item-input item-stacked-label" ng-if="pacienteEsus.usaPlantasMedicinais === 1">
+                <span class="input-label c-input-full-content c-input-title">Quais Plantas?</span>
+                <input c-max-length="150" type="text" ng-model="pacienteEsus.quaisPlantas">
+            </label>
+            <label class="item item-input item-stacked-label" on-tap="escolherDoencaCardiaca()">
+                <span class="input-label c-input-full-content c-input-title">Tem Doença Cardíaca?</span>
+                <input type="text" disabled ng-model="condicoesSaudeBind.descricaoDoencaCardiaca">
+            </label>
+            <label class="item item-input item-stacked-label" on-tap="escolherDoencaRins()">
+                <span class="input-label c-input-full-content c-input-title">Tem Doença nos Rins?</span>
+                <input type="text" disabled ng-model="condicoesSaudeBind.descricaoDoencaRins">
+            </label>
+            <label class="item item-input item-stacked-label" on-tap="escolherDoencaRespiratoria()">
+                <span class="input-label c-input-full-content c-input-title">Tem Doenças Respiratórias?</span>
+                <input type="text" disabled ng-model="condicoesSaudeBind.descricaoDoencaRespiratoria">
+            </label>
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.outrasPraticasIntegrativas" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Outras Práticas Integrativas?</div>
+            </li>
+            <div class="item item-divider">
+                Outras Condições de Saúde?
+            </div>            
+            <label class="item item-input item-stacked-label" >
+                <input c-max-length="100" type="text" ng-model="pacienteEsus.condicaoSaude1" placeholder="Qual?">
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <input c-max-length="100" type="text" ng-model="pacienteEsus.condicaoSaude2" placeholder="Qual?">
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <input c-max-length="100" type="text" ng-model="pacienteEsus.condicaoSaude3" placeholder="Qual?">
+            </label>
+        </div>        
+    </ion-content>
+</ion-view>
+
+

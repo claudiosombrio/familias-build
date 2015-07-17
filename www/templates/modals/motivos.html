@@ -1,0 +1,13 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Selecione o Motivo</h1>
+        <a class="button button-icon icon ion-close" on-tap="fecharMotivos()"></a>
+    </ion-header-bar>
+    <ion-content >
+        <div class="list">
+            <a class="item" on-tap="motivoSelecionado(item)" bindonce ng-repeat="item in bind.motivos" >
+                <h2>{{item.descricao}}</h2>
+            </a>
+        </div>    
+    </ion-content>
+</ion-modal-view>

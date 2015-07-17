@@ -1,0 +1,33 @@
+<ion-view ng-controller="agendasPendentesCtrl" attach-to-window="true">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+    </ion-header-bar>
+    <div class="list has-header">
+        <div class="item item-avatar" style="white-space: nowrap;">
+            <img ng-src="{{bind.avatar}}">
+            <div style="width: 100%; float: left;">
+                <h2 style="float:left;">{{individuo.nome}}</h2>
+            </div>
+
+            <div>
+                <p style="float: left;">Idade:&nbsp;</p>
+                <p style="float: left;" >{{individuo.idadeAnos}} ano(s) </p>
+                <p class="item-note">{{individuo.dataNascimento}}</p>
+            </div>
+        </div>
+    </div>    
+    <ion-content style="top: 105px;" >
+        <div class="list">
+            <div class="card" ng-repeat="item in bind.agendas">
+                <a class="item item-icon-left" on-tap="openItemOptions($index)">
+                    <i ng-show="item.statusMobile == 0" class="icon ion-help-circled energized"></i>
+                    <i ng-show="item.statusMobile == 1" class="icon ion-thumbsup positive"></i>
+                    <i ng-show="item.statusMobile == 2" class="icon ion-thumbsdown assertive"></i>
+                    <h2 ng-bind="item.tipoAgenda"></h2>
+                    <p>{{item.dataAgendamento}} - {{item.local}}</p>
+                </a>                
+            </div>
+        </div>
+    </ion-content>
+</ion-view>

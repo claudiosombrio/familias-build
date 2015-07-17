@@ -1,0 +1,27 @@
+<ion-view>
+    <ion-content padding="true">
+        <div class="list">
+            <div class="card" ng-repeat="item in domicilio.individuos">
+                <a class="item item-avatar" style="white-space: nowrap;" on-tap="openItemOptions($index)">
+                    <img ng-src="{{definirAvatar(item)}}">
+                    <div style="width: 100%; float: left;">
+                        <h2 style="float:left;">{{item.nome}}</h2>
+                        <!--<a style="float: right;" class="icon-right icon ion-close" on-tap="removerIndividuo($index);$event.stopPropagation()"></a>-->
+                    </div>
+                    
+                    <div>
+                        <p style="float: left;">Mãe:&nbsp;</p>
+                        <p style="float: left;" >{{item.nomeMae}}</p>
+                        <p class="item-note">{{item.dataNascimento}}</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </ion-content>
+    <ion-footer-bar class="bar-positive c-bar-large">
+        <button class="button ion-plus button-light" style="min-height: 100%;" ng-if="verBotaoSalvar" on-tap="selecionarIndividuo()">Adicionar Indivíduo</button>
+        <button class="button ion-document button-light" ng-if="verBotaoSalvar" on-tap="cadastrarIndividuo()">Cadastrar Indivíduo</button>
+    </ion-footer-bar>
+</ion-view>
+
+

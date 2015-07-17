@@ -1,0 +1,27 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Selecione a Cidade</h1>
+                <a class="button button-icon icon ion-close" on-tap="closeModalCidade()"></a>
+    </ion-header-bar>
+    <ion-header-bar class="bar-subheader item-input-inset">
+        <!--<select ng-model="bindCidade.codigoEstado" ng-options="item.id as item.sigla for item in estados"></select>-->
+        <label class="item-input-wrapper">
+            <i class="icon ion-android-search placeholder-icon"></i>
+            <input ng-change="buscarCidade()" ng-model="bindCidade.criterioCidade" type="search" placeholder="Procurar" />
+        </label>
+    </ion-header-bar>    
+
+    <ion-content delegate-handle="contentCidade">
+        <div class="list">
+            <a class="item" on-tap="cidadeSelecionada(item)" bindonce ng-repeat="item in bindCidade.cidades" >
+                <h2>{{item.descricao}} - {{item.siglaEstado}}</h2>
+            </a>
+            <ion-infinite-scroll
+                ng-if="bindCidade.canLoadCidade"
+                icon="ion-loading-c"
+                on-infinite="loadCidade()"
+                distance="1%">
+            </ion-infinite-scroll>        
+        </div>    
+    </ion-content>
+</ion-modal-view>

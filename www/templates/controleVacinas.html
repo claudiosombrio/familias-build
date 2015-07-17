@@ -1,0 +1,38 @@
+<ion-view ng-controller="controleVacinasCtrl" attach-to-window="true">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+        <!--<button class="button icon-left ion-camera" on-tap="capturarImagem()"></button>-->
+    </ion-header-bar>
+    <div class="list has-header">
+        <div class="item item-avatar" style="white-space: nowrap;">
+            <img ng-src="{{bind.avatar}}">
+            <div style="width: 100%; float: left;">
+                <h2 style="float:left;">{{individuo.nome}}</h2>
+            </div>
+
+            <div>
+                <p style="float: left;">Idade:&nbsp;</p>
+                <p style="float: left;" >{{individuo.idadeAnos}} ano(s) </p>
+                <p class="item-note">{{individuo.dataNascimento}}</p>
+            </div>
+        </div>
+        <div class="item c-item-images" ng-show="bind.imagens.length > 0">
+            <ion-scroll direction="x">
+                <img ng-repeat="item in bind.imagens" ng-src="data:image/jpeg;base64,{{item.imagem}}" class="c-image-list-thumb" on-tap="optionsImagem($index)"/>
+            </ion-scroll>
+        </div>        
+    </div>
+    <ion-content ng-class="bind.recuo" >
+        <div class="card" ng-show="bind.vacinas.length > 0">
+            <a class="item" on-tap="optionsVacinas($index)" ng-repeat="item in bind.vacinas">
+                <h2 ng-bind="item.descricao"></h2>
+                <p>{{item.dataAplicacaoFormatado}} - Lote: {{item.lote}}</p>
+            </a>        
+        </div>
+    </ion-content>
+    <ion-footer-bar class="bar-positive c-bar-large">
+        <button class="button c-button-large-square icon ion-camera button-light" on-tap="capturarImagem()"></button>
+        <button class="button c-button-large-square icon ion-plus button-light" on-tap="adicionarVacina()"></button>
+    </ion-footer-bar>
+</ion-view>

@@ -1,0 +1,42 @@
+<ion-view>
+    <ion-content padding="true">
+        <div class="list">
+            <div class="card" ng-repeat="item in domicilio.individuos">
+                <div class="item item-avatar" style="white-space: nowrap;">
+                    <img ng-src="{{definirAvatar(item)}}">
+                    <div style="width: 100%; float: left;">
+                        <h2 style="float:left;">{{item.nome}}</h2>
+                    </div>
+
+                    <div>
+                        <p style="float: left;">Idade:&nbsp;</p>
+                        <p style="float: left;" >{{item.idadeAnos}} ano(s) </p>
+                        <p class="item-note">{{item.dataNascimento}}</p>
+                    </div>
+                </div>
+                <a class="item item-icon-left" on-tap="editarVacinas($index)" ng-show="item.vacinaAtrasada < 0">
+                    <i class="icon ion-alert-circled energized"></i>
+                    Vacinas não Controladas
+                </a>
+                <div class="item item-icon-left" ng-show="item.vacinaAtrasada > 0">
+                    <i class="icon ion-alert-circled energized"></i>
+                    Vacinas Atrasadas
+                </div>
+                <a class="item item-icon-left" ng-show="item.naoComparecimento" on-tap="editarAgendamentos($index)">
+                    <i class="icon ion-alert-circled energized"></i>
+                    Agendas Pendentes
+                </a>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Peso (kg)</span>
+                    <input type="tel" c-peso ng-model="item.peso" select-on-click />
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Altura (m)</span>
+                    <input type="tel" c-altura ng-model="item.altura" select-on-click />
+                </label>
+            </div>
+        </div>
+    </ion-content>
+</ion-view>
+
+

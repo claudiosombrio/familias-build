@@ -1,0 +1,157 @@
+<ion-view>
+    <ion-content padding="true">
+        <!--        <p>Profissional: Maria da Rosa e Silva</p>
+                <label>Área/M. Área: Bairro São João / 7</label>-->
+        <div class="list">
+            <label class="item item-input item-select">
+                <div class="c-required input-label c-input-title c-input-full-content">
+                    Situação de Moradia
+                </div>
+                <select ng-model="domicilioEsus.situacaoMoradia">
+                    <option selected></option>
+                    <option value="75" label="Próprio" ></option>
+                    <option value="76" label="Financiado" ></option>
+                    <option value="77" label="Alugado" ></option>
+                    <option value="78" label="Arrendado" ></option>
+                    <option value="79" label="Cedido" ></option>
+                    <option value="80" label="Ocupação" ></option>
+                    <option value="81" label="Situação de Rua" ></option>
+                    <option value="82" label="Outro" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-select">
+                <div class="c-required input-label c-input-title c-input-full-content">
+                    Localização
+                </div>
+                <select ng-model="domicilioEsus.localizacao">
+                    <option selected></option>
+                    <option value="83" label="Urbana" ></option>
+                    <option value="84" label="Rural" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-select" ng-if="domicilioEsus.localizacao == 2">
+                <div class="input-label c-input-title c-input-full-content">
+                    Condição de Posse e Uso da Terra
+                </div>
+                <select ng-model="domicilioEsus.condicaoUsoTerra">
+                    <option selected></option>
+                    <option value="101" label="Proprietário" ></option>
+                    <option value="102" label="Meeiro" ></option>
+                    <option value="103" label="Assentado" ></option>
+                    <option value="104" label="Posseiro" ></option>
+                    <option value="105" label="Arrendatário" ></option>
+                    <option value="106" label="Comodatário" ></option>
+                    <option value="107" label="Beneficiário" ></option>
+                    <option value="108" label="Não se Aplica" ></option>
+                </select>
+            </label>            
+            <label class="c-required item item-input item-select">
+                <div class="input-label c-input-title c-input-full-content">
+                    Tipo de Domicílio
+                </div>
+                <select ng-model="domicilioEsus.tipoDomicilio">
+                    <option selected></option>
+                    <option value="85" label="Casa" ></option>
+                    <option value="86" label="Apartamento" ></option>
+                    <option value="87" label="Comodo" ></option>
+                    <option value="88" label="Outro" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Nº de Moradores</span>
+                <input type="number" ng-model="domicilioEsus.numeroMoradores">
+            </label>
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Nº de Cômodos</span>
+                <input type="number" ng-model="domicilioEsus.numeroComodos">
+            </label>
+            <label class="item item-input item-select">
+                <div class="input-label c-input-title c-input-full-content">
+                    Tipo de Acesso ao Domicílio
+                </div>
+                <select ng-model="domicilioEsus.tipoAcessoDomicilio">
+                    <option selected></option>
+                    <option value="89" label="Asfalto" ></option>
+                    <option value="90" label="Chão Batido" ></option>
+                    <option value="91" label="Fluvial" ></option>
+                    <option value="92" label="Outro" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-select">
+                <div class="input-label c-input-title c-input-full-content">
+                    Material das Paredes Externas do Seu Domicílio
+                </div>
+                <select ng-model="domicilioEsus.materialDominante">
+                    <option selected></option>
+                    <option value="109" label="Alvenaria com Revestimento" ></option>
+                    <option value="110" label="Alvenaria sem Revestimento" ></option>
+                    <option value="111" label="Taipa com Revestimento" ></option>
+                    <option value="112" label="Taipa sem Revestimento" ></option>
+                    <option value="113" label="Madeira Aparelhada" ></option>
+                    <option value="114" label="Palha" ></option>
+                    <option value="115" label="Material Aproveitado" ></option>
+                    <option value="116" label="Outro" ></option>
+                </select>
+            </label>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="domicilioEsus.possuiEnergiaEletrica" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Possui Energia Elétrica?</div>
+            </li>            
+            <label class="item item-input item-select">
+                <div class="input-label c-input-title c-input-full-content">
+                    Abastecimento de Água
+                </div>
+                <select ng-model="domicilioEsus.abastecimentoAgua">
+                    <option selected></option>
+                    <option value="117" label="Rede Encanada até o Domicílio" ></option>
+                    <option value="118" label="Poço/Nascente no Domicílio" ></option>
+                    <option value="119" label="Cisterna" ></option>
+                    <option value="120" label="Carro Pipa" ></option>
+                    <option value="121" label="Outro" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-select">
+                <div class="input-label c-input-title c-input-full-content">
+                    Tratamento da Água
+                </div>
+                <select ng-model="domicilioEsus.tratamentoAgua">
+                    <option selected></option>
+                    <option value="97" label="Filtrada" ></option>
+                    <option value="98" label="Fervida" ></option>
+                    <option value="99" label="Clorada" ></option>
+                    <option value="100" label="Sem Tratamento" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-select">
+                <div class="input-label c-input-title c-input-full-content">
+                    Escoamento de Banheiro ou Esgoto
+                </div>
+                <select ng-model="domicilioEsus.esgotamento">
+                    <option selected></option>
+                    <option value="122" label="Rede Coletora de Esgoto ou Pluvial" ></option>
+                    <option value="123" label="Fossa Séptica" ></option>
+                    <option value="124" label="Fossa Rudimentar" ></option>
+                    <option value="125" label="Direto para um Rio, Lago ou Mar" ></option>
+                    <option value="126" label="Céu Aberto" ></option>
+                    <option value="127" label="Outro" ></option>
+                </select>
+            </label>
+            <label class="item item-input item-select">
+                <div class="input-label c-input-title c-input-full-content">
+                    Destino do Lixo
+                </div>
+                <select ng-model="domicilioEsus.destinoLixo">
+                    <option selected></option>
+                    <option value="93" label="Coletado" ></option>
+                    <option value="94" label="Queimado/Enterrado" ></option>
+                    <option value="95" label="Céu Aberto" ></option>
+                    <option value="96" label="Outro" ></option>
+                </select>
+            </label>            
+        </div>        
+    </ion-content>
+</ion-view>
+
+

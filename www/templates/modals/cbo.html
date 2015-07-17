@@ -1,0 +1,26 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Selecione o País</h1>
+        <a class="button button-icon icon ion-close" on-tap="closeModalCbo()"></a>
+    </ion-header-bar>
+    <ion-header-bar class="bar-subheader item-input-inset">
+        <label class="item-input-wrapper">
+            <i class="icon ion-android-search placeholder-icon"></i>
+            <input ng-change="buscarCbo()" ng-model="bindCbo.criterioCbo" type="search" placeholder="Procurar" />
+        </label>
+    </ion-header-bar>    
+
+    <ion-content delegate-handle="contentCbo">
+        <div class="list">
+            <a class="item" on-tap="cboSelecionado(item)" bindonce ng-repeat="item in bindCbo.cbos" >
+                <h2>{{item.descricao}}</h2>
+            </a>
+            <ion-infinite-scroll
+                ng-if="bindCbo.canLoadCbo"
+                icon="ion-loading-c"
+                on-infinite="loadCbo()"
+                distance="1%">
+            </ion-infinite-scroll>        
+        </div>    
+    </ion-content>
+</ion-modal-view>

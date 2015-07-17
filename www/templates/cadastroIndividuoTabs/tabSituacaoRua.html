@@ -1,0 +1,69 @@
+<ion-view>
+    <ion-content padding="true">
+        <div class="list">
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.situacaoRua" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Está em Situação de Rua?</div>
+            </li>            
+            <div ng-if="pacienteEsus.situacaoRua === 1">
+                <label class="item item-input item-select" >
+                    <div class="input-label c-input-title">
+                        Há Quanto Tempo?
+                    </div>
+                    <select ng-model="pacienteEsus.tempoRua">
+                        <option selected></option>
+                        <option value="17" label="Menos de 6 meses" ></option>
+                        <option value="18" label="De 6 a 12 meses" ></option>
+                        <option value="19" label="De 1 a 5 anos" ></option>
+                        <option value="20" label="Mais de 5 anos" ></option>
+                    </select>
+                </label>            
+                <li class="item item-checkbox">
+                    <label class="checkbox">
+                        <input type="checkbox" ng-model="pacienteEsus.recebeBeneficio" ng-true-value="1" ng-false-value="0" >
+                    </label>
+                    <div class="input-label c-input-full-content c-input-title">Recebe Algum Benefício?</div>
+                </li>            
+                <li class="item item-checkbox">
+                    <label class="checkbox">
+                        <input type="checkbox" ng-model="pacienteEsus.possuiReferenciaFamiliar" ng-true-value="1" ng-false-value="0" >
+                    </label>
+                    <div class="input-label c-input-full-content c-input-title">Possui Referência Familiar?</div>
+                </li>            
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Acompanhado por Outra Instituição?</span>
+                    <input c-max-length="150" type="text" ng-model="pacienteEsus.nomeOutraInstituicao" placeholder="Qual?">
+                </label>
+                <label class="item item-input item-stacked-label">
+                    <span class="input-label c-input-full-content c-input-title">Visita Familiar com Frequência?</span>
+                    <input c-max-length="50" type="text" ng-model="pacienteEsus.grauParentesco" placeholder="Qual o Parentesco?">
+                </label>
+                <label class="item item-input item-select" >
+                    <div class="input-label c-input-full-content c-input-title">
+                        Quantas Refeições ao Dia?
+                    </div>
+                    <select ng-model="pacienteEsus.refeicoesDia">
+                        <option selected></option>
+                        <option value="34" label="Uma vez" ></option>
+                        <option value="35" label="De 2 a 3 vezes" ></option>
+                        <option value="36" label="Mais de 3 vezes" ></option>
+                    </select>
+                </label>            
+                <label class="item item-input item-stacked-label" on-tap="escolherOrigemAlimentacao()">
+                    <span class="input-label c-input-full-content c-input-title">Qual a Origem da Alimentação?</span>
+                    <input type="text" disabled ng-model="situacaoRuaBind.descricaoOrigemAlimentacao">
+                </label>
+                <label class="item item-input item-stacked-label" on-tap="escolherHigienePessoal()">
+                    <span class="input-label c-input-full-content c-input-title">Tem Acesso a Higiene Pessoal?</span>
+                    <input type="text" disabled ng-model="situacaoRuaBind.descricaoHigienePessoal">
+                </label>
+
+
+            </div>
+        </div>        
+    </ion-content>
+</ion-view>
+
+

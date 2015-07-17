@@ -1,0 +1,36 @@
+<ion-view ng-controller="sincronizacaoInicialCtrl">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <h1 class="title">{{tituloPrincipal}}</h1>
+    </ion-header-bar>
+    <ion-content padding="true">
+        <button ng-show="avancar" on-tap="actAvancar()" class="button button-block button-balanced">
+            Avançar
+        </button>    
+
+        <button ng-show="nova" on-tap="actNova()" class="button button-block button-assertive">
+            Nova Sincronização
+        </button>    
+
+        <button ng-show="continuar" on-tap="actContinuar()" class="button button-block button-balanced">
+            Continuar Sincronizando
+        </button>    
+
+        <button ng-show="sincronizar" on-tap="actSincronizar()" class="button button-block button-balanced">
+            Sincronizar
+        </button>    
+
+        <div class="card">
+            <div id="scopeElement" class="item item-text-wrap">
+                <p style="color: red;" ng-repeat="line in bind.erros track by $index">{{line}}</p>
+            </div>
+        </div>
+        <div class="card">
+            <div id="scopeElement" class="item item-text-wrap">
+                <p ng-repeat="line in log track by $index">{{line}}</p>
+            </div>
+        </div>
+
+    </ion-content>
+</ion-view>
+
+

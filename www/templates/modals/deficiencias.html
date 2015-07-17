@@ -1,0 +1,40 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Escolher Deficiência</h1>
+        <a class="button button-icon icon ion-close" on-tap="fecharDeficiencias()"></a>
+    </ion-header-bar>
+    <ion-content delegate-handle="contentDeficiencia">
+        <div class="list">
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.deficienciaAuditiva" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Auditiva</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.deficienciaVisual" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Visual</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.deficienciaIntelectual" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Intelectual/Cognitiva </div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.deficienciaFisica" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Física</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.deficienciaOutra" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Outra</div>
+            </li>            
+        </div>    
+    </ion-content>
+</ion-modal-view>

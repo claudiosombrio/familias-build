@@ -1,0 +1,28 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Escolher Doença nos Rins</h1>
+        <a class="button button-icon icon ion-close" on-tap="fecharDoencaRins()"></a>
+    </ion-header-bar>
+    <ion-content >
+        <div class="list">
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.rinsInsuficiencia" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Insuficiência Renal</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.rinsOutros" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Outra</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.rinsNaoSabe" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Não Sabe</div>
+            </li>            
+        </div>    
+    </ion-content>
+</ion-modal-view>

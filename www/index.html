@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, width=device-width">
+        <title></title>
+
+        <link href="lib/ionic/css/ionic.css" rel="stylesheet">
+        <link href="css/app.css" rel="stylesheet">
+
+<!--        <script src="lib/ionic/js/ionic.bundle.js"></script>
+        <script src="lib/ionic/js/angular/angular-resource.js"></script>-->
+        
+        <script src="lib/ionic/js/angular/angular.js"></script>
+        <script src="lib/ionic/js/angular/angular-animate.js"></script>
+        <script src="lib/ionic/js/angular/angular-resource.js"></script>
+        <script src="lib/ionic/js/angular/angular-sanitize.js"></script>
+        <script src="lib/ionic/js/angular-ui/angular-ui-router.js"></script>
+        <script src="lib/ionic/js/ionic.js"></script>        
+        <script src="lib/ionic/js/ionic-angular.js"></script>
+        <script src="js/ng-cordova.js"></script>
+        <script src="js/cpf.js"></script>
+        <script src="js/cns.js"></script>
+        <script src="js/ngCpfCns.js"></script>
+        <script src="js/ui-mask.js"></script>
+
+        <script src="js/SHA256.js"></script>
+        <script src="js/LineReader.js"></script>
+        <script src="js/bindOnce.js"></script>
+        <script src="js/app.js"></script>
+
+        <script src="js/services.js"></script>
+        <script src="js/filters.js"></script>
+        <script src="js/directives.js"></script>
+        
+        <script src="js/controllers/ctrlRegistro.js"></script>
+        <script src="js/controllers/ctrlSincronizacaoInicial.js"></script>
+        <script src="js/controllers/ctrlMenu.js"></script>
+        <script src="js/controllers/ctrlLogin.js"></script>
+        <script src="js/controllers/ctrlIndividuos.js"></script>
+        <script src="js/controllers/ctrlCadastroIndividuo.js"></script>
+        <script src="js/controllers/ctrlDomicilios.js"></script>
+        <script src="js/controllers/ctrlCadastroDomicilio.js"></script>
+        <script src="js/controllers/ctrlVisitaDomicilios.js"></script>
+        <script src="js/controllers/ctrlCadastroVisita.js"></script>
+        <script src="js/controllers/ctrlInconsistencias.js"></script>
+        <script src="js/controllers/ctrlAgendasPendentes.js"></script>
+        <script src="js/controllers/ctrlControleVacinas.js"></script>
+        <script src="js/controllers/ctrlNovaVacina.js"></script>
+        <script src="js/controllers/empty.js"></script>
+    </head>
+    <body ng-app="starter" animation="slide-left-right-ios7">
+
+<!--    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left button-light ion-power" on-tap="acaoSair()" ng-if="verBotaoSair">Sair</button>
+        <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+        <button class="button button-clear" ng-if="verPendencias" on-tap="acaoPendencias()">
+            Pendências<span class="badge badge-assertive">{{bind.inconsistencias}}</span>
+        </button>
+        <button class="button icon-left ion-checkmark-round" ng-if="verBotaoSalvar" on-tap="acaoSalvar()">Salvar</button>
+    </ion-header-bar>-->
+
+    <ion-nav-view animation="slide-left-right"></ion-nav-view>
+    
+    <script src="cordova.js"></script>
+   
+    
+    
+</body>
+</html>

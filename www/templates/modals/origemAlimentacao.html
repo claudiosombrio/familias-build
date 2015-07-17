@@ -1,0 +1,40 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Escolher Origem da Alimentação</h1>
+        <a class="button button-icon icon ion-close" on-tap="fecharOrigemAlimentacao()"></a>
+    </ion-header-bar>
+    <ion-content >
+        <div class="list">
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.refeicaoRestaurantePopular" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Restaurante Popular</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.refeicaoDoacaoReligioso" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Doação de Grupo Religioso</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.refeicaoDoacaoRestaurante" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Doação de Restaurante</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.refeicaoDoacaoPopular" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Doação de Popular</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.refeicaoDoacaoOutros" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Outros</div>
+            </li>            
+        </div>    
+    </ion-content>
+</ion-modal-view>

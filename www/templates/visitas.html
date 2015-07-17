@@ -1,0 +1,38 @@
+<ion-view ng-controller="visitaDomiciliosCtrl" attach-to-window="true">
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
+        <h1 class="title">{{tituloPrincipal}}</h1>
+    </ion-header-bar>
+    <div class="list has-header">
+        <div class="item item-input-inset">
+            <div class="item-input-wrapper" style="max-width: 170px; margin-right: 5px; overflow: hidden;">
+                <i class="icon ion-android-search placeholder-icon"></i>
+                <input ng-change="buscar()" ng-model="filtroFamilia" type="search" placeholder="Domicílio / Família"/>
+            </div>
+            <div class="item-input-wrapper">
+                <i class="icon ion-android-search placeholder-icon"></i>
+                <input ng-change="buscar()" ng-model="filtroEndereco" type="search" placeholder="Endereço"/>
+            </div>
+        </div>        
+    </div>    
+    <ion-content class="has-subheader" >
+        <div class="list">
+            <div class="card" ng-repeat="item in itens">
+                <a class="item item-thumbnail-left" style="white-space: nowrap;" ui-sref="cadastroVisitas.tabVisita({idDomicilio: item.id})">
+                    <img src="imagens/clipboard_96x96.png">
+                    <h2>{{item.codigoSistema}} - {{item.logradouro}}, {{item.numeroLogradouro}}</h2>
+                    <div>
+                        <p style="float: left;" >{{item.bairro}} - {{item.complementoLogradouro}}</p>
+                        <p class="item-note">Fam. {{item.numeroFamilia}}</p>
+                    </div>
+                </a>
+            </div>
+            <ion-infinite-scroll
+                ng-if="canLoad"
+                icon="ion-loading-c"
+                on-infinite="loadMoreData()"
+                distance="1%">
+            </ion-infinite-scroll>        
+        </div>    
+    </ion-content>
+</ion-view>

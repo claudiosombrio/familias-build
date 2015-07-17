@@ -1,0 +1,13 @@
+<ion-modal-view>
+    <ion-header-bar class="bar-positive">
+        <h1 class="title">Escolher Indivíduo</h1>
+        <a class="button button-icon icon ion-close" on-tap="fecharIndividuo()"></a>
+    </ion-header-bar>
+    <ion-content >
+        <div class="list">
+            <a class="item" on-tap="individuoSelecionado(item)" bindonce ng-repeat="item in domicilio.individuos" >
+                <h2>{{item.nome}}</h2>
+            </a>
+        </div>    
+    </ion-content>
+</ion-modal-view>

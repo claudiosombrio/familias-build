@@ -1,0 +1,173 @@
+<ion-view>
+    <ion-content padding="true">
+        <div class="list">
+            <label class="item item-input item-select">
+                <div class="input-label c-input-title">
+                    Situação Conjugal
+                </div>
+                <select ng-model="pacienteEsus.situacaoConjugal">
+                    <option selected></option>
+                    <option value="1" label="Solteiro" ></option>
+                    <option value="2" label="Casado" ></option>
+                    <option value="3" label="Divorciado" ></option>
+                    <option value="4" label="Viúvo" ></option>
+                    <option value="5" label="Outra" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-stacked-label" on-tap="selecionarCbo()">
+                <div class="c-input-title">
+                    Ocupação
+                </div>
+                <div class="input-label">
+                    <i ng-if="pacienteEsus.codigoCbo" class="icon ion-ios7-close" on-tap="limparCbo();$event.stopPropagation()" ></i>
+                    <span >{{pacienteEsus.descricaoCbo}}</span>
+                </div>
+            </label>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.frequentaEscola" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Frequenta a Escola?</div>
+            </li>            
+            <label class="item item-input item-select">
+                <div class="input-label c-input-full-content c-input-title">
+                    Escolaridade
+                </div>
+                <select ng-model="pacienteEsus.nivelEscolaridade">
+                    <option selected></option>
+                    <option value="51" label="Creche" ></option>
+                    <option value="52" label="Pré Escola (Exceto CA)" ></option>
+                    <option value="53" label="Classe Alfabetizada - CA" ></option>
+                    <option value="54" label="Ensino Fundamental 1º à 4º séries" ></option>
+                    <option value="55" label="Ensino Fundamental 5º à 8º séries" ></option>
+                    <option value="56" label="Ensino Fundamental Completo" ></option>
+                    <option value="61" label="Ensino Fundamental Especial" ></option>
+                    <option value="58" label="Ensino Fundamental EJA - Séries iniciais (Supletivo 1º à 4º)" ></option>
+                    <option value="59" label="Ensino Fundamental EJA - Séries finais (Supletivo 5º à 8º)" ></option>
+                    <option value="60" label="Ensino Médio, 2º ciclo (Científico, Técnico, etc)" ></option>
+                    <option value="57" label="Ensino Médio Especial" ></option>
+                    <option value="62" label="Ensino Médio EJA (Supletivo)" ></option>
+                    <option value="63" label="Superior, Aperfeiçoamento, Especialização, Mestrado, Doutorado" ></option>
+                    <option value="64" label="Alfabetização para Adultos (Mobral, etc)" ></option>
+                    <option value="65" label="Nenhum" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-select">
+                <div class="input-label c-input-full-content c-input-title">
+                    Mercado de Trabalho
+                </div>
+                <select ng-model="pacienteEsus.situacaoMercadoTrabalho">
+                    <option selected></option>
+                    <option value="66" label="Empregador" ></option>
+                    <option value="67" label="Assalariado com carteira de trabalho" ></option>
+                    <option value="68" label="Assalariado sem carteira de trabalho" ></option>
+                    <option value="69" label="Autônomo com previdência social" ></option>
+                    <option value="70" label="Autônomo sem previdência social" ></option>
+                    <option value="71" label="Aposentado/Pensionista" ></option>
+                    <option value="72" label="Desempregado" ></option>
+                    <option value="73" label="Não Trabalha" ></option>
+                    <option value="74" label="Outro" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-select">
+                <div class="input-label c-input-full-content c-input-title">
+                    Responsável por Crianças (0 à 9 anos)
+                </div>
+                <select ng-model="pacienteEsus.responsavelCrianca">
+                    <option selected></option>
+                    <option value="1" label="Adulto Responsável" ></option>
+                    <option value="2" label="Outra(s) Criança(s)" ></option>
+                    <option value="133" label="Adolescente" ></option>
+                    <option value="3" label="Sozinha" ></option>
+                    <option value="134" label="Creche" ></option>
+                    <option value="4" label="Outro" ></option>
+                </select>
+            </label>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.frequentaCurandeira" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Frequenta Curandeira/Benzedeiro?</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.participaGrupoComunitario" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Participa de Grupo Comunitário?</div>
+            </li>            
+            <li class="item item-checkbox">
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="pacienteEsus.possuiPlanoSaude" ng-true-value="1" ng-false-value="0" >
+                </label>
+                <div class="input-label c-input-full-content c-input-title">Possui Plano de Saúde Privado?</div>
+            </li>            
+            <label class="item item-input item-stacked-label">
+                <span class="input-label c-input-full-content c-input-title">Membro de Comunidade Tradicional?</span>
+                <input c-max-length="50" type="text" ng-model="pacienteEsus.comunidadeTradicional" placeholder="Qual?">
+            </label>
+            <label class="item item-input item-select">
+                <div class="input-label c-input-full-content c-input-title">
+                    Orientação Sexual
+                </div>
+                <select ng-model="pacienteEsus.orientacaoSexual">
+                    <option selected></option>
+                    <option value="5" label="Heterosexual" ></option>
+                    <option value="6" label="Gay" ></option>
+                    <option value="7" label="Lesbica" ></option>
+                    <option value="8" label="Bissexual" ></option>
+                    <option value="9" label="Travesti" ></option>
+                    <option value="10" label="Transsexual" ></option>
+                    <option value="11" label="Outro" ></option>
+                </select>
+            </label>            
+            <label class="item item-input item-stacked-label" on-tap="escolherDeficiencias()">
+                <span class="input-label c-input-full-content c-input-title">Possui alguma deficiência?</span>
+                <input type="text" disabled ng-model="infoSocioBind.descricaoDeficiencias">
+            </label>
+            <label class="item item-input item-stacked-label" on-tap="escolherProteses()">
+                <span class="input-label c-input-full-content c-input-title">Utiliza Prótese?</span>
+                <input type="text" disabled ng-model="infoSocioBind.descricaoProteses">
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <span class="input-label c-input-full-content c-input-title">Religião</span>
+                <input c-max-length="50" type="text" ng-model="paciente.religiao">
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <span class="input-label c-input-full-content c-input-title">Local de Trabalho</span>
+                <input c-max-length="50" type="text" ng-model="paciente.localTrabalho">
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <span class="input-label c-input-full-content c-input-title">Telefone do Trabalho</span>
+                <input name="telefoneTrabalho" c-telefone type="tel" ng-model="paciente.telefoneTrabalho">
+                <span ng-if="paciente.telefoneTrabalho.length > 0 && !form.telefoneTrabalho.$valid" class="c-errorMsg">Número inválido</span>
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <span class="input-label c-input-full-content c-input-title">Responsável</span>
+                <input c-max-length="70" type="text" ng-model="paciente.responsavel">
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <span class="input-label c-input-full-content c-input-title">Parentesco do Responsável</span>
+                <input c-max-length="20" type="text" ng-model="paciente.parentescoResponsavel">
+            </label>
+            <div class="item item-divider">
+                Em Caso de Urgência Chamar
+            </div>            
+            <label class="item item-input item-stacked-label" >
+                <span class="input-label c-input-full-content c-input-title">Nome</span>
+                <input c-max-length="70" type="text" ng-model="paciente.urgenciaNome">
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <span class="input-label c-input-full-content c-input-title">Telefone</span>
+                <input name="urgenciaTelefone" c-telefone type="tel" ng-model="paciente.urgenciaTelefone">
+                <span ng-if="paciente.urgenciaTelefone.length > 0 && !form.urgenciaTelefone.$valid" class="c-errorMsg">Número inválido</span>
+            </label>
+            <label class="item item-input item-stacked-label" >
+                <span class="input-label c-input-full-content c-input-title">Grau de Parentesco</span>
+                <input c-max-length="20" type="text" ng-model="paciente.urgenciaParentesco">
+            </label>
+            
+        </div>        
+    </ion-content>
+</ion-view>
+
+
