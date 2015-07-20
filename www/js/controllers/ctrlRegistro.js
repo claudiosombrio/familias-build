@@ -38,14 +38,25 @@ controllers.controller('registroCtrl', ['$scope', '$ionicPopup', '$http', '$stat
             }
             url += '/rest/mobile/';
 
-            $http.post(url + G_versao + '/' + G_id + '/registrarDispositivo?usuario='
-                    + this.usuario + '&senha=' + SHA256(this.senha)).
-                    success(function (data, status, headers, config) {
-                        $scope.registro(url, data, status, headers, config);
-                    })
-                    .error(function (data, status, headers, config) {
-                        $scope.error(data, status, headers, config);
-                    });
+            var xmlhttp = new XMLHttpRequest();
+            var url = url + G_versao + '/' + G_id + '/registrarDispositivo?usuario='+ this.usuario + '&senha=' + SHA256(this.senha);
+
+            xmlhttp.onreadystatechange = function() {
+//                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                    alert("("+xmlhttp.status+")" + xmlhttp.responseText);
+//                }
+            };
+            xmlhttp.open("POST", url, true);
+            xmlhttp.send();
+
+//            $http.post(url + G_versao + '/' + G_id + '/registrarDispositivo?usuario='
+//                    + this.usuario + '&senha=' + SHA256(this.senha)).
+//                    success(function (data, status, headers, config) {
+//                        $scope.registro(url, data, status, headers, config);
+//                    })
+//                    .error(function (data, status, headers, config) {
+//                        $scope.error(data, status, headers, config);
+//                    });
         };
 
         $scope.error = function (data, status, headers, config) {
