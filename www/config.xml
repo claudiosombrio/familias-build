@@ -7,12 +7,11 @@
   <author email="dev@cordova.apache.org" href="http://cordova.io">
         Apache Cordova Team
     </author>
-  <!--<content src="index.html"/>-->
-  
+  <content src="index.html"/>
   
   <icon src="resources/android/icon/drawable-xhdpi-icon.png"/>
-<!--  <preference name="SplashScreen" value="screen"/>
-  <preference name="SplashScreenDelay" value="30000"/>-->
+  <preference name="SplashScreen" value="screen"/>
+  <preference name="SplashScreenDelay" value="30000"/>
   <!--<preference name='phonegap-version' value='cli-5.1.1' />-->	
 
   <gap:plugin name="org.apache.cordova.device" version="0.2.12" />
