@@ -48,7 +48,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             var uri = encodeURI($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
                 + 'nomeRecurso='+ nomeRecurso 
                 + '&versao='+versao);
-            var downloadPath = "cdvfile://localhost/temporary/celk/familias/tabelaTemp.txt";
+            var downloadPath = "cdvfile://localhost/persistent/celk/familias/tabelaTemp.txt";
 
             ft.download(uri, downloadPath, function(entry) {
                 deferred.resolve();
