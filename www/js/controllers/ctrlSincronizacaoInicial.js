@@ -1586,10 +1586,10 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 var totalCount = 0;
                                 var lineGroup = '';
                                 lr.on('line', function (line, next) {
-                                    alert('passo line: ' + JSON.stringify(line));
                                     lineGroup += line + '\n';
                                     totalCount++;
                                     if(totalCount % 2000 === 0){
+                                        alert('passo line: ' + totalCount);
                                         $scope.parseEndereco(lineGroup, versao === 0).then(function(){
                                             $scope.log.unshift('['+totalCount+'] Importados');
                                             lineGroup = '';
