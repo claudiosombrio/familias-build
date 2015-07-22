@@ -1586,8 +1586,9 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 var totalCount = 0;
                                 var lineGroup = '';
                                 lr.on('line', function (line, next) {
-                                    lineGroup += line + '\n';
                                     totalCount++;
+                                    $scope.log.unshift('['+totalCount+'] '+line);
+                                    lineGroup += line + '\n';
                                     if(totalCount % 2000 === 0){
                                         alert('passo line: ' + totalCount);
                                         $scope.parseEndereco(lineGroup, versao === 0).then(function(){
@@ -1602,7 +1603,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                     }
                                 });
                                 lr.on('error', function (err) {
-                                    alert('erro linereader: ' + JSON.stringify(err));
+                                    alert('erro linereader: ' + JSON.stringify(err) + ' total: '+ totalCount);
                                     $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
                                 });
                                 lr.on('end', function() {
