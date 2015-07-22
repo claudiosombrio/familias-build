@@ -1589,6 +1589,9 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                     totalCount++;
                                     $scope.log.unshift('['+totalCount+'] '+line);
                                     lineGroup += line + '\n';
+                                    if(totalCount % 37 === 0){
+                                        alert('['+totalCount+'] '+line);
+                                    }
                                     if(totalCount % 2000 === 0){
                                         alert('passo line: ' + totalCount);
                                         $scope.parseEndereco(lineGroup, versao === 0).then(function(){
