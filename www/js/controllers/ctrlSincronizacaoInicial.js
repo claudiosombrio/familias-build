@@ -133,7 +133,8 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             $scope.erroNaImportacao();
         };
         
-        $scope.failFile = function(){
+        $scope.failFile = function(error){
+            alert('Erro: '+ error);
             $scope.log.unshift('Erro no arquivo');
             $scope.erroNaImportacao();
         };
