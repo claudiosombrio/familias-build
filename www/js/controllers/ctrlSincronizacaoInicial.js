@@ -1580,46 +1580,56 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
                                 alert('passo 1: ' + JSON.stringify(fileEntry));
-                                var lr = new LineReader({
-                                    chunkSize: 300
-                                });
-                                var totalCount = 0;
-                                var lineGroup = '';
-                                lr.on('line', function (line, next) {
-                                    totalCount++;
-                                    lineGroup += line + '\n';
-//                                    $scope.log.unshift('['+totalCount+'] '+line);
-//                                    if(totalCount % 37 === 0){
-//                                        alert('['+totalCount+'] '+line);
+
+                                var reader = new FileReader();
+                                reader.onloadend = function(e) {
+                                    $scope.parseEndereco(this.result, versao === 0).then(function(){
+                                    }, function(err){
+                                        alert('ERRO PARSE' + JSON.stringify(err));
+                                    }); 
+                                };
+
+                                reader.readAsText(file);
+       ////                                var lr = new LineReader({
+//                                    chunkSize: 300
+//                                });
+//                                var totalCount = 0;
+//                                var lineGroup = '';
+//                                lr.on('line', function (line, next) {
+//                                    totalCount++;
+//                                    lineGroup += line + '\n';
+////                                    $scope.log.unshift('['+totalCount+'] '+line);
+////                                    if(totalCount % 37 === 0){
+////                                        alert('['+totalCount+'] '+line);
+////                                    }
+//                                    if(totalCount % 200 === 0){
+//                                        $scope.parseEndereco(lineGroup, versao === 0).then(function(){
+//                                            $scope.log.unshift('['+totalCount+'] Importados');
+////                                            alert('passo line: ' + totalCount);
+//                                            lineGroup = '';
+//                                            next();
+//                                        }, function(){
+//                                            lr.abort();
+//                                        }); 
+//                                    }else{
+//                                        next();
 //                                    }
-                                    if(totalCount % 200 === 0){
-                                        $scope.parseEndereco(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('['+totalCount+'] Importados');
-//                                            alert('passo line: ' + totalCount);
-                                            lineGroup = '';
-                                            next();
-                                        }, function(){
-                                            lr.abort();
-                                        }); 
-                                    }else{
-                                        next();
-                                    }
-                                });
-                                lr.on('error', function (err) {
-                                    alert('erro linereader: ' + JSON.stringify(err) + ' total: '+ totalCount);
-                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-                                });
-                                lr.on('end', function() {
-                                    if(lineGroup !== ''){
-                                        $scope.parseEndereco(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-                                            $scope.finalizarEndereco();
-                                        }); 
-                                    }else{
-                                        $scope.finalizarEndereco();
-                                    }
-                                });
-                                lr.read(file);                        
+//                                });
+//                                lr.on('error', function (err) {
+//                                    alert('erro linereader: ' + JSON.stringify(err) + ' total: '+ totalCount);
+//                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
+//                                });
+//                                lr.on('end', function() {
+//                                    if(lineGroup !== ''){
+//                                        $scope.parseEndereco(lineGroup, versao === 0).then(function(){
+//                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
+//                                            $scope.finalizarEndereco();
+//                                        }); 
+//                                    }else{
+//                                        $scope.finalizarEndereco();
+//                                    }
+//                                });
+//                                lr.read(file);                        
 
                             }, $scope.failFile);
                         }, $scope.failFile);
@@ -3537,6 +3547,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             
             var itens = [];
             var linha = data.split('\n');
+            alert('IMPORTANDO ' + linha.length);
             for (var i = 0; i < linha.length -1; i++) {
                 var registro = linha[i].split('|');
 
