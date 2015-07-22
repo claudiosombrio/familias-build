@@ -1588,14 +1588,14 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 lr.on('line', function (line, next) {
                                     totalCount++;
                                     lineGroup += line + '\n';
-                                    $scope.log.unshift('['+totalCount+'] '+line);
-                                    if(totalCount % 37 === 0){
-                                        alert('['+totalCount+'] '+line);
-                                    }
-                                    if(totalCount % 2000 === 0){
-                                        alert('passo line: ' + totalCount);
+//                                    $scope.log.unshift('['+totalCount+'] '+line);
+//                                    if(totalCount % 37 === 0){
+//                                        alert('['+totalCount+'] '+line);
+//                                    }
+                                    if(totalCount % 200 === 0){
                                         $scope.parseEndereco(lineGroup, versao === 0).then(function(){
                                             $scope.log.unshift('['+totalCount+'] Importados');
+//                                            alert('passo line: ' + totalCount);
                                             lineGroup = '';
                                             next();
                                         }, function(){
