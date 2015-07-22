@@ -1581,7 +1581,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                             fileEntry.file(function (file) {
                                 alert('passo 1: ' + JSON.stringify(fileEntry));
                                 var lr = new LineReader({
-                                    chunkSize: 600
+                                    chunkSize: 300
                                 });
                                 var totalCount = 0;
                                 var lineGroup = '';
