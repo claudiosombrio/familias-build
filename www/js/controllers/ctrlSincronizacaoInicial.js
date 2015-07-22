@@ -1577,8 +1577,8 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     $scope.log.unshift('Importando endereços');
                     $scope.log.unshift('Importação por meio de arquivo');
                     
-                        FS.fileSystem.root.getFile("cdvfile://localhost/persistent/celk/familias2/tabelaTemp.txt", null, function (fileEntry) {
-//                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
+//                        FS.fileSystem.root.getFile("cdvfile://localhost/persistent/celk/familias2/tabelaTemp.txt", null, function (fileEntry) {
+                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
                                 var lr = new LineReader({
                                     chunkSize: 600
