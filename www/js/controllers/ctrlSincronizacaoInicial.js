@@ -1584,6 +1584,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 var reader = new FileReader();
                                 reader.onloadend = function(e) {
                                     $scope.parseEndereco(this.result, versao === 0).then(function(){
+                                        alert('Enderecos importados com sucesso');
                                     }, function(err){
                                         alert('ERRO PARSE' + JSON.stringify(err));
                                     }); 
