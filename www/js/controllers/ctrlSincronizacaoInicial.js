@@ -1577,16 +1577,16 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     $scope.log.unshift('Importando endereços');
                     $scope.log.unshift('Importação por meio de arquivo');
                     
-//                        FS.fileSystem.root.getFile("cdvfile://localhost/persistent/celk/familias2/tabelaTemp.txt", null, function (fileEntry) {
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            alert('Arquivo recuperado: ' + fileEntry.name);
                             fileEntry.file(function (file) {
+                                alert('passo 1: ' + JSON.stringify(fileEntry));
                                 var lr = new LineReader({
                                     chunkSize: 600
                                 });
                                 var totalCount = 0;
                                 var lineGroup = '';
                                 lr.on('line', function (line, next) {
+                                    alert('passo line: ' + JSON.stringify(line));
                                     lineGroup += line + '\n';
                                     totalCount++;
                                     if(totalCount % 2000 === 0){
@@ -1602,6 +1602,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                     }
                                 });
                                 lr.on('error', function (err) {
+                                    alert('erro linereader: ' + JSON.stringify(err));
                                     $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
                                 });
                                 lr.on('end', function() {
