@@ -1587,8 +1587,8 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 var lineGroup = '';
                                 lr.on('line', function (line, next) {
                                     totalCount++;
-                                    $scope.log.unshift('['+totalCount+'] '+line);
                                     lineGroup += line + '\n';
+                                    $scope.log.unshift('['+totalCount+'] '+line);
                                     if(totalCount % 37 === 0){
                                         alert('['+totalCount+'] '+line);
                                     }
