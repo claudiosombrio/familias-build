@@ -1579,6 +1579,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
 //                        FS.fileSystem.root.getFile("cdvfile://localhost/persistent/celk/familias2/tabelaTemp.txt", null, function (fileEntry) {
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
+                            alert('Arquivo recuperado: ' + fileEntry.name);
                             fileEntry.file(function (file) {
                                 var lr = new LineReader({
                                     chunkSize: 600
