@@ -51,11 +51,9 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             var downloadPath = "cdvfile://localhost/persistent/celk/familias/tabelaTemp.txt";
 
             ft.download(uri, downloadPath, function(entry) {
-                alert('Arquivo Baixado!');
                 deferred.resolve();
             }, 
             function(error) {
-                alert('erro ao baixar arquivo!'+ error + ' '+ error.message);
                 deferred.reject(error);
             });
             
@@ -1574,12 +1572,12 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 if(! versao){
                     versao = 0;
                 }
-                alert('teste alert');
                 $scope.baixarArquivo(versao, 'endereco').then(function(){
                     $scope.log.unshift('Importando endereços');
                     $scope.log.unshift('Importação por meio de arquivo');
                     
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
+                        FS.fileSystem.root.getFile("cdvfile://localhost/persistent/celk/familias/tabelaTemp.txt", null, function (fileEntry) {
+//                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
                                 var lr = new LineReader({
                                     chunkSize: 600
