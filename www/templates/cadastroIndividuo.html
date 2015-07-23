@@ -1,9 +1,9 @@
+<ion-header-bar align-title="center" class="bar-stable">
+    <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
+    <h1 class="title">{{tituloPrincipal}}</h1>
+    <button class="button icon-left ion-checkmark-round" ng-if="verBotaoSalvar" on-tap="acaoSalvar()">Salvar</button>
+</ion-header-bar>
 <ion-view ng-controller="cadastroIndividuoCtrl">
-    <ion-header-bar align-title="center" class="bar-stable">
-        <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
-        <h1 class="title">{{tituloPrincipal}}</h1>
-        <button class="button icon-left ion-checkmark-round" ng-if="verBotaoSalvar" on-tap="acaoSalvar()">Salvar</button>
-    </ion-header-bar>
     <form name="form">
         <ion-tabs class="tabs-top tabs-background-positive tabs-color-light tabs-positive tabs-icon-only">
             <ion-tab title="Identificação" icon-on="ion-ios7-person" icon-off="ion-ios7-person" href="#/cadastroIndividuos/{{bind.idIndividuo}}/cadastroIndividuoTabs/tabIdentificacao">

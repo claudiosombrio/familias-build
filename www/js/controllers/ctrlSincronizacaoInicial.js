@@ -2208,7 +2208,6 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     .success(function (data, status, headers, config) {
                         $scope.parseTipoVacina(data, versao === 0 )
                             .then(function(){
-                                alert('importar registro vacina aberto!');
                                 $scope.importarPacientesRegistroVacinaAberto();
                         
                             },function(){$scope.problemaParse();});
