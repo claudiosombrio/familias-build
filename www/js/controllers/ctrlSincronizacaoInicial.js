@@ -1579,58 +1579,18 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
-                                alert('passo 1: ' + JSON.stringify(fileEntry));
 
                                 var reader = new FileReader();
                                 reader.onloadend = function(e) {
                                     $scope.parseEndereco(this.result, versao === 0).then(function(){
-                                        alert('Enderecos importados com sucesso');
+                                        $scope.log.unshift('Enderecos importados com sucesso');
+                                        $scope.finalizarEndereco();
                                     }, function(err){
-                                        alert('ERRO PARSE' + JSON.stringify(err));
+                                        $scope.log.unshift('ERRO AO IMPORTAR ENDERECOS' + JSON.stringify(err));
                                     }); 
                                 };
 
                                 reader.readAsText(file);
-       ////                                var lr = new LineReader({
-//                                    chunkSize: 300
-//                                });
-//                                var totalCount = 0;
-//                                var lineGroup = '';
-//                                lr.on('line', function (line, next) {
-//                                    totalCount++;
-//                                    lineGroup += line + '\n';
-////                                    $scope.log.unshift('['+totalCount+'] '+line);
-////                                    if(totalCount % 37 === 0){
-////                                        alert('['+totalCount+'] '+line);
-////                                    }
-//                                    if(totalCount % 200 === 0){
-//                                        $scope.parseEndereco(lineGroup, versao === 0).then(function(){
-//                                            $scope.log.unshift('['+totalCount+'] Importados');
-////                                            alert('passo line: ' + totalCount);
-//                                            lineGroup = '';
-//                                            next();
-//                                        }, function(){
-//                                            lr.abort();
-//                                        }); 
-//                                    }else{
-//                                        next();
-//                                    }
-//                                });
-//                                lr.on('error', function (err) {
-//                                    alert('erro linereader: ' + JSON.stringify(err) + ' total: '+ totalCount);
-//                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-//                                });
-//                                lr.on('end', function() {
-//                                    if(lineGroup !== ''){
-//                                        $scope.parseEndereco(lineGroup, versao === 0).then(function(){
-//                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-//                                            $scope.finalizarEndereco();
-//                                        }); 
-//                                    }else{
-//                                        $scope.finalizarEndereco();
-//                                    }
-//                                });
-//                                lr.read(file);                        
 
                             }, $scope.failFile);
                         }, $scope.failFile);
@@ -1658,41 +1618,16 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
-                                var lr = new LineReader({
-                                    chunkSize: 600
-                                });
-                                var totalCount = 0;
-                                var lineGroup = '';
-                                lr.on('line', function (line, next) {
-                                    lineGroup += line + '\n';
-                                    totalCount++;
-                                    if(totalCount % 2000 === 0){
-                                        $scope.parseDomicilio(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('['+totalCount+'] Importados');
-                                            lineGroup = '';
-                                            next();
-                                        }, function(){
-                                            lr.abort();
-                                        }); 
-                                    }else{
-                                        next();
-                                    }
-                                });
-                                lr.on('error', function (err) {
-                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-                                });
-                                lr.on('end', function() {
-                                    if(lineGroup !== ''){
-                                        $scope.parseDomicilio(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-                                            $scope.finalizarDomicilio();
-                                        }); 
-                                    }else{
+
+                                var reader = new FileReader();
+                                reader.onloadend = function(e) {
+                                    $scope.parseDomicilio(this.result, versao === 0).then(function(){
+                                        $scope.log.unshift('Domicilios importados com sucesso');
                                         $scope.finalizarDomicilio();
-                                        $scope.$apply();
-                                    }
-                                });
-                                lr.read(file);                        
+                                    }, function(err){
+                                        $scope.log.unshift('ERRO AO IMPORTAR DOMICILIOS' + JSON.stringify(err));
+                                    }); 
+                                };
 
                             }, $scope.failFile);
                         }, $scope.failFile);
@@ -1720,42 +1655,17 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
-                                var lr = new LineReader({
-                                    chunkSize: 600
-                                });
-                                var totalCount = 0;
-                                var lineGroup = '';
-                                lr.on('line', function (line, next) {
-                                    lineGroup += line + '\n';
-                                    totalCount++;
-                                    if(totalCount % 2000 === 0){
-                                        $scope.parseDomicilioEsus(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('['+totalCount+'] Importados');
-                                            lineGroup = '';
-                                            next();
-                                        }, function(){
-                                            lr.abort();
-                                        }); 
-                                    }else{
-                                        next();
-                                    }
-                                });
-                                lr.on('error', function (err) {
-                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-                                });
-                                lr.on('end', function() {
-                                    if(lineGroup !== ''){
-                                        $scope.parseDomicilioEsus(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-                                            $scope.finalizarDomicilioEsus();
-                                        }); 
-                                    }else{
+               
+                                var reader = new FileReader();
+                                reader.onloadend = function(e) {
+                                    $scope.parseDomicilioEsus(this.result, versao === 0).then(function(){
+                                        $scope.log.unshift('Domicilios Esus importados com sucesso');
                                         $scope.finalizarDomicilioEsus();
-                                        $scope.$apply();
-                                    }
-                                });
-                                lr.read(file);                        
-
+                                    }, function(err){
+                                        $scope.log.unshift('ERRO AO IMPORTAR DOMICILIOS Esus ' + JSON.stringify(err));
+                                    }); 
+                                };
+                                
                             }, $scope.failFile);
                         }, $scope.failFile);
 
