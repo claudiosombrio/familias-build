@@ -1583,13 +1583,11 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 var reader = new FileReader();
                                 reader.onloadend = function(e) {
                                     $scope.parseEndereco(this.result, versao === 0).then(function(){
-                                        $scope.log.unshift('Enderecos importados com sucesso');
                                         $scope.finalizarEndereco();
                                     }, function(err){
                                         $scope.log.unshift('ERRO AO IMPORTAR ENDERECOS' + JSON.stringify(err));
                                     }); 
                                 };
-
                                 reader.readAsText(file);
 
                             }, $scope.failFile);
@@ -1622,12 +1620,12 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 var reader = new FileReader();
                                 reader.onloadend = function(e) {
                                     $scope.parseDomicilio(this.result, versao === 0).then(function(){
-                                        $scope.log.unshift('Domicilios importados com sucesso');
                                         $scope.finalizarDomicilio();
                                     }, function(err){
                                         $scope.log.unshift('ERRO AO IMPORTAR DOMICILIOS' + JSON.stringify(err));
                                     }); 
                                 };
+                                reader.readAsText(file);
 
                             }, $scope.failFile);
                         }, $scope.failFile);
@@ -1659,12 +1657,12 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 var reader = new FileReader();
                                 reader.onloadend = function(e) {
                                     $scope.parseDomicilioEsus(this.result, versao === 0).then(function(){
-                                        $scope.log.unshift('Domicilios Esus importados com sucesso');
                                         $scope.finalizarDomicilioEsus();
                                     }, function(err){
                                         $scope.log.unshift('ERRO AO IMPORTAR DOMICILIOS Esus ' + JSON.stringify(err));
                                     }); 
                                 };
+                                reader.readAsText(file);
                                 
                             }, $scope.failFile);
                         }, $scope.failFile);
@@ -1692,41 +1690,16 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
-                                var lr = new LineReader({
-                                    chunkSize: 600
-                                });
-                                var totalCount = 0;
-                                var lineGroup = '';
-                                lr.on('line', function (line, next) {
-                                    lineGroup += line + '\n';
-                                    totalCount++;
-                                    if(totalCount % 1000 === 0){
-                                        $scope.parsePaciente(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('['+totalCount+'] Importados');
-                                            lineGroup = '';
-                                            next();
-                                        }, function(){
-                                            lr.abort();
-                                        }); 
-                                    }else{
-                                        next();
-                                    }
-                                });
-                                lr.on('error', function (err) {
-                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-                                });
-                                lr.on('end', function() {
-                                    if(lineGroup !== ''){
-                                        $scope.parsePaciente(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-                                            $scope.finalizarPaciente();
-                                        }); 
-                                    }else{
+                                
+                                var reader = new FileReader();
+                                reader.onloadend = function(e) {
+                                    $scope.parsePaciente(this.result, versao === 0).then(function(){
                                         $scope.finalizarPaciente();
-                                        $scope.$apply();
-                                    }
-                                });
-                                lr.read(file);                        
+                                    }, function(err){
+                                        $scope.log.unshift('ERRO AO IMPORTAR Paciente ' + JSON.stringify(err));
+                                    }); 
+                                };
+                                reader.readAsText(file);
 
                             }, $scope.failFile);
                         }, $scope.failFile);
@@ -1794,42 +1767,17 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
-                                var lr = new LineReader({
-                                    chunkSize: 600
-                                });
-                                var totalCount = 0;
-                                var lineGroup = '';
-                                lr.on('line', function (line, next) {
-                                    lineGroup += line + '\n';
-                                    totalCount++;
-                                    if(totalCount % 2000 === 0){
-                                        $scope.parseCns(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('['+totalCount+'] Importados');
-                                            lineGroup = '';
-                                            next();
-                                        }, function(){
-                                            lr.abort();
-                                        }); 
-                                    }else{
-                                        next();
-                                    }
-                                });
-                                lr.on('error', function (err) {
-                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-                                });
-                                lr.on('end', function() {
-                                    if(lineGroup !== ''){
-                                        $scope.parseCns(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-                                            $scope.finalizarCns();
-                                        }); 
-                                    }else{
-                                        $scope.finalizarCns();
-                                        $scope.$apply();
-                                    }
-                                });
-                                lr.read(file);                        
 
+                                var reader = new FileReader();
+                                reader.onloadend = function(e) {
+                                    $scope.parseCns(this.result, versao === 0).then(function(){
+                                        $scope.finalizarCns();
+                                    }, function(err){
+                                        $scope.log.unshift('ERRO AO IMPORTAR CNS ' + JSON.stringify(err));
+                                    }); 
+                                };
+                                reader.readAsText(file);
+                                
                             }, $scope.failFile);
                         }, $scope.failFile);
 
@@ -1855,42 +1803,17 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
-                                var lr = new LineReader({
-                                    chunkSize: 600
-                                });
-                                var totalCount = 0;
-                                var lineGroup = '';
-                                lr.on('line', function (line, next) {
-                                    lineGroup += line + '\n';
-                                    totalCount++;
-                                    if(totalCount % 2000 === 0){
-                                        $scope.parseDocumentos(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('['+totalCount+'] Importados');
-                                            lineGroup = '';
-                                            next();
-                                        }, function(){
-                                            lr.abort();
-                                        }); 
-                                    }else{
-                                        next();
-                                    }
-                                });
-                                lr.on('error', function (err) {
-                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-                                });
-                                lr.on('end', function() {
-                                    if(lineGroup !== ''){
-                                        $scope.parseDocumentos(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-                                            $scope.finalizarDocumentos();
-                                        }); 
-                                    }else{
-                                        $scope.finalizarDocumentos();
-                                        $scope.$apply();
-                                    }
-                                });
-                                lr.read(file);                        
 
+                                var reader = new FileReader();
+                                reader.onloadend = function(e) {
+                                    $scope.parseDocumentos(this.result, versao === 0).then(function(){
+                                        $scope.finalizarDocumentos();
+                                    }, function(err){
+                                        $scope.log.unshift('ERRO AO IMPORTAR Documentos ' + JSON.stringify(err));
+                                    }); 
+                                };
+                                reader.readAsText(file);
+                                
                             }, $scope.failFile);
                         }, $scope.failFile);
 
@@ -1917,42 +1840,17 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
-                                var lr = new LineReader({
-                                    chunkSize: 600
-                                });
-                                var totalCount = 0;
-                                var lineGroup = '';
-                                lr.on('line', function (line, next) {
-                                    lineGroup += line + '\n';
-                                    totalCount++;
-                                    if(totalCount % 2000 === 0){
-                                        $scope.parsePacienteEsus(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('['+totalCount+'] Importados');
-                                            lineGroup = '';
-                                            next();
-                                        }, function(){
-                                            lr.abort();
-                                        }); 
-                                    }else{
-                                        next();
-                                    }
-                                });
-                                lr.on('error', function (err) {
-                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-                                });
-                                lr.on('end', function() {
-                                    if(lineGroup !== ''){
-                                        $scope.parsePacienteEsus(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-                                            $scope.finalizarPacienteEsus();
-                                        }); 
-                                    }else{
-                                        $scope.finalizarPacienteEsus();
-                                        $scope.$apply();
-                                    }
-                                });
-                                lr.read(file);                        
 
+                                var reader = new FileReader();
+                                reader.onloadend = function(e) {
+                                    $scope.parsePacienteEsus(this.result, versao === 0).then(function(){
+                                        $scope.finalizarPacienteEsus();
+                                    }, function(err){
+                                        $scope.log.unshift('ERRO AO IMPORTAR Paciente Esus ' + JSON.stringify(err));
+                                    }); 
+                                };
+                                reader.readAsText(file);
+                                
                             }, $scope.failFile);
                         }, $scope.failFile);
 
@@ -1978,41 +1876,16 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
                             fileEntry.file(function (file) {
-                                var lr = new LineReader({
-                                    chunkSize: 600
-                                });
-                                var totalCount = 0;
-                                var lineGroup = '';
-                                lr.on('line', function (line, next) {
-                                    lineGroup += line + '\n';
-                                    totalCount++;
-                                    if(totalCount % 2000 === 0){
-                                        $scope.parsePacienteDado(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('['+totalCount+'] Importados');
-                                            lineGroup = '';
-                                            next();
-                                        }, function(){
-                                            lr.abort();
-                                        }); 
-                                    }else{
-                                        next();
-                                    }
-                                });
-                                lr.on('error', function (err) {
-                                    $scope.log.unshift('ERRO AO LER ARQUIVO: '+err);
-                                });
-                                lr.on('end', function() {
-                                    if(lineGroup !== ''){
-                                        $scope.parsePacienteDado(lineGroup, versao === 0).then(function(){
-                                            $scope.log.unshift('TOTAL DE REGISTROS: '+ totalCount);
-                                            $scope.finalizarPacienteDado();
-                                        }); 
-                                    }else{
+
+                                var reader = new FileReader();
+                                reader.onloadend = function(e) {
+                                    $scope.parsePacienteDado(this.result, versao === 0).then(function(){
                                         $scope.finalizarPacienteDado();
-                                        $scope.$apply();
-                                    }
-                                });
-                                lr.read(file);                        
+                                    }, function(err){
+                                        $scope.log.unshift('ERRO AO IMPORTAR Paciente Dado' + JSON.stringify(err));
+                                    }); 
+                                };
+                                reader.readAsText(file);
 
                             }, $scope.failFile);
                         }, $scope.failFile);
