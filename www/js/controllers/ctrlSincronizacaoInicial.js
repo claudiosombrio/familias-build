@@ -2208,7 +2208,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     .success(function (data, status, headers, config) {
                         $scope.parseTipoVacina(data, versao === 0 )
                             .then(function(){
-                                
+                                alert('importar registro vacina aberto!');
                                 $scope.importarPacientesRegistroVacinaAberto();
                         
                             },function(){$scope.problemaParse();});
@@ -2307,9 +2307,8 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         }
                         sql = sql.substring(0, sql.length-1) + ")";
                         DB.query(sql, binding);
-                        
-                        $scope.importarRegistrosExcluidos();
                     }
+                    $scope.importarRegistrosExcluidos();
                 })
                 .error(function (data, status, headers, config) {
                     $scope.problemaConexao();
@@ -3331,7 +3330,6 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             
             var itens = [];
             var linha = data.split('\n');
-            alert('IMPORTANDO ' + linha.length);
             for (var i = 0; i < linha.length -1; i++) {
                 var registro = linha[i].split('|');
 
