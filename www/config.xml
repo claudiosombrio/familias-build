@@ -33,7 +33,7 @@
   <plugin name="org.apache.cordova.geolocation" version="2.4.2" />
   <!--gap:plugin name="org.apache.cordova.geolocation" version="0.3.10" /-->
 
-  <plugin spec="https://github.com/apache/cordova-plugin-file.git#latest" />
+  <plugin spec="https://github.com/apache/cordova-plugin-file.git#1.5.3" />
   <!--gap:plugin name="com.brodysoft.sqliteplugin" version="1.0.4" /-->
 
   <!--gap:plugin name="com.plugin.datepicker" version="0.4.0" /-->
