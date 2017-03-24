@@ -27,7 +27,7 @@
   <!--gap:plugin name="org.apache.cordova.camera" version="0.3.2" /-->
   <!--gap:plugin name="org.apache.cordova.camera" version="0.3.2" /-->
 
-  <plugin name="org.apache.cordova.network-information" version="0.2.12" />
+  <plugin name="org.apache.cordova.network-information" version="1.3.2" />
   <!--gap:plugin name="org.apache.cordova.network-information" version="0.2.12" /-->
 
   <plugin name="org.apache.cordova.geolocation" version="0.3.10" />
