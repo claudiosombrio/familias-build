@@ -42,7 +42,7 @@
   <!--gap:plugin name="io.github.pwlin.cordova.plugins.fileopener2" version="1.0.11" /-->
   <!--gap:plugin name="io.github.pwlin.cordova.plugins.fileopener2" version="1.0.11" /-->
 
-  <!--gap:plugin name="org.apache.cordova.splashscreen" version="0.3.4" /-->
+  <plugin name="org.apache.cordova.splashscreen" version="4.0.2" />
   <!--gap:plugin name="org.apache.cordova.splashscreen" version="0.3.4" /-->
 
   <!--gap:plugin name="uk.co.whiteoctober.cordova.appversion" version="0.1.4" /-->
