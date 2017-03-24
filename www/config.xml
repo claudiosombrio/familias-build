@@ -21,7 +21,7 @@
   <plugin name="org.apache.cordova.dialogs" version="1.3.2" />
   <!--gap:plugin name="org.apache.cordova.dialogs" version="0.2.10" /-->
 
-  <plugin name="org.apache.cordova.file" version="1.3.1" />
+  <plugin name="org.apache.cordova.file" version="4.3.2" />
   <!--gap:plugin name="org.apache.cordova.file" version="1.3.1" /-->
 
   <!--gap:plugin name="org.apache.cordova.camera" version="0.3.2" /-->
