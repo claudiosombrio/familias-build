@@ -33,7 +33,7 @@
   <plugin name="org.apache.cordova.geolocation" version="2.4.2" />
   <!--gap:plugin name="org.apache.cordova.geolocation" version="0.3.10" /-->
 
-  <plugin name="cordova-sqlite-ext" source="npm" />
+  <plugin name="cordova-sqlite-evcore-extbuild-free" />
   <!--gap:plugin name="com.brodysoft.sqliteplugin" version="1.0.4" /-->
 
   <!--gap:plugin name="com.plugin.datepicker" version="0.4.0" /-->
