@@ -48,7 +48,7 @@
   <!--gap:plugin name="uk.co.whiteoctober.cordova.appversion" version="0.1.4" /-->
   <!--gap:plugin name="uk.co.whiteoctober.cordova.appversion" version="0.1.4" /-->
 
-  <plugin name="org.apache.cordova.file-transfer" version="0.4.6" />
+  <plugin name="org.apache.cordova.file-transfer" version="1.6.2" />
   <!--gap:plugin name="org.apache.cordova.file-transfer" version="0.4.6" /-->
 
     <icon src="resources/android/icon/drawable-ldpi-icon.png" gap:density="ldpi"/>
