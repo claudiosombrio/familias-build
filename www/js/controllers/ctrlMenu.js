@@ -29,7 +29,7 @@ controllers.controller('menuCtrl', ['$scope', '$state', '$ionicHistory', 'DB', '
                     $scope.verPendencias = true;
                 }
                 $ionicLoading.hide();
-                $scope.verificarAtualizacao();
+                //$scope.verificarAtualizacao();
             });
         };
 
