@@ -1802,6 +1802,26 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             });
         };
 
+        $scope.importarDominioPaciente2 = function() {
+            var versao = window.localStorage.getItem("dominioPaciente");
+            if (!versao) {
+                versao = 10000;
+            }
+
+            $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=dominio_paciente' + '&versao=' + versao)
+                .success(function(data, status, headers, config) {
+
+                    $scope.parseDominioPaciente(data, versao === 10000).then(function() {
+                        $scope.sucessoNaImportacao();
+                    });
+
+                })
+                .error(function(data, status, headers, config) {
+                    $scope.problemaConexao();
+                });
+        };
+
+
         $scope.importarDominioPaciente = function() {
             $scope.versaoExistente('dominioPaciente').then(function(versao) {
                 if (!versao) {
@@ -3260,7 +3280,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 .success(function(data, status, headers, config) {
 
                     $scope.parseExclusoes(data, versao === 0);
-                    $scope.importarDominioPaciente();
+                    $scope.importarDominioPaciente2();
 //                    $scope.sucessoNaImportacao();
 
                 })
