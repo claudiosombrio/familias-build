@@ -3260,7 +3260,8 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 .success(function(data, status, headers, config) {
 
                     $scope.parseExclusoes(data, versao === 0);
-                    $scope.importarDominioPaciente();
+//                    $scope.importarDominioPaciente();
+                    $scope.sucessoNaImportacao();
 
                 })
                 .error(function(data, status, headers, config) {
