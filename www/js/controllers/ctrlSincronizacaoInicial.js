@@ -1811,11 +1811,11 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 $scope.baixarArquivo(versao, 'dominio_paciente', $scope.bind.dominioPaciente).then(function() {
                     $scope.log.unshift('Importando DominioPaciente(s)');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    DB.session.transaction(function(tx) {
+//                    DB.session.transaction(function(tx) {
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
                             fileEntry.file(function(file) {
                                 var lr = new LineReader({
-                                    chunkSize: 600
+                                    chunkSize: 1000
                                 });
                                 var totalCount = 0;
                                 var lineGroup = '';
@@ -1828,6 +1828,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                             lineGroup = '';
                                             next();
                                         }, function() {
+                                            $scope.log.unshift('O processo abortou 1');
                                             lr.abort();
                                         });
                                     } else {
@@ -1864,9 +1865,9 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                             }, $scope.failFile);
                         }, $scope.failFile);
 
-                    }, function(error) {
-                        $scope.problemaImportarArquivo(error);
-                    });
+//                    }, function(error) {
+//                        $scope.problemaImportarArquivo(error);
+//                    });
                 });
             });
         };
