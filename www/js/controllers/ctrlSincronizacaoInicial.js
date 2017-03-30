@@ -1805,13 +1805,13 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
         $scope.importarDominioPaciente2 = function() {
             var versao = window.localStorage.getItem("dominioPaciente");
             if (!versao) {
-                versao = 10000;
+                versao = 0;
             }
 
             $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=dominio_paciente' + '&versao=' + versao)
                 .success(function(data, status, headers, config) {
 
-                    $scope.parseDominioPaciente(data, versao === 10000).then(function() {
+                    $scope.parseDominioPaciente(data, versao === 0).then(function() {
                         $scope.sucessoNaImportacao();
                     });
 
