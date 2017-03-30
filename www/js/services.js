@@ -89,7 +89,7 @@ services.factory('DB', function($q) {
     self.init = function() {
         G_DB_ready = false;
         if(window.cordova){
-            self.session = window.sqlitePlugin.openDatabase({name: "familia.db"});
+            self.session = window.sqlitePlugin.openDatabase({name: 'familia.db', location: 'default'});
             console.log('BANCO SQLITE');
 
             self.session.executeSql("PRAGMA foreign_keys = ON;", [],function (res) {

@@ -13,6 +13,7 @@
   <preference name="SplashScreen" value="screen"/>
   <preference name="SplashScreenDelay" value="30000"/>
   <preference name="iosPersistentFileLocation" value="Library" />
+  <preference name="AndroidPersistentFileLocation" value="Compatibility" />
   <!--<preference name='phonegap-version' value='cli-5.1.1' />-->	
 
   <plugin name="cordova-plugin-whitelist" spec="~1.3.2" />
