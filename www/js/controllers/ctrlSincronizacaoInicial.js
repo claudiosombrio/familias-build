@@ -1815,7 +1815,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
                             fileEntry.file(function(file) {
                                 var lr = new LineReader({
-                                    chunkSize: 1000
+                                    chunkSize: 300
                                 });
                                 var totalCount = 0;
                                 var lineGroup = '';
