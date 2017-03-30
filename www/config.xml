@@ -74,9 +74,11 @@
     <gap:splash src="resources/android/splash/drawable-port-xxxhdpi-screen.png" gap:density="port-xxxhdpi"/>
   
   
-  <gap:platform name="ios" />
-  <gap:platform name="android" />
-  <gap:platform name="winphone" />
+    <platform name="ios" >
+        <icon src="resources/android/icon/drawable-xxhdpi-icon.png" width="120" height="120"/>
+    </platform>
+  <platform name="android" />
+  <platform name="winphone" />
   
   <access origin="*"/>
 </widget>

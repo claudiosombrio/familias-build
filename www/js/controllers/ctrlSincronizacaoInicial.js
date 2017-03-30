@@ -1807,7 +1807,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 if (!versao) {
                     versao = 0;
                 }
-                var datamilis = new Date().getTime();
+//                var datamilis = new Date().getTime();
                 $scope.baixarArquivo(versao, 'dominio_paciente', $scope.bind.dominioPaciente).then(function() {
                     $scope.log.unshift('Importando DominioPaciente(s)');
                     $scope.log.unshift('Importação por meio de arquivo');
@@ -1815,14 +1815,14 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
                             fileEntry.file(function(file) {
                                 var lr = new LineReader({
-                                    chunkSize: 300
+                                    chunkSize: 600
                                 });
                                 var totalCount = 0;
                                 var lineGroup = '';
                                 lr.on('line', function(line, next) {
                                     lineGroup += line + '\n';
                                     totalCount++;
-                                    if (totalCount % 1000 === 0) {
+                                    if (totalCount % 3000 === 0) {
                                         $scope.parseDominioPaciente(lineGroup, versao === 0).then(function() {
                                             $scope.log.unshift('[' + totalCount + '] Importados');
                                             lineGroup = '';
@@ -3260,8 +3260,8 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 .success(function(data, status, headers, config) {
 
                     $scope.parseExclusoes(data, versao === 0);
-//                    $scope.importarDominioPaciente();
-                    $scope.sucessoNaImportacao();
+                    $scope.importarDominioPaciente();
+//                    $scope.sucessoNaImportacao();
 
                 })
                 .error(function(data, status, headers, config) {
