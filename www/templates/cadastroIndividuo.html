@@ -1,6 +1,6 @@
 <ion-view ng-controller="cadastroIndividuoCtrl">
-    <ion-header-bar align-title="center" class="bar-stable" style="top: 0px;">
-        <button class="button icon-left ion-chevron-left" on-tap="acaoVoltar()">Voltar</button>
+    <ion-header-bar align-title="center" class="bar-stable">
+        <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
         <h1 class="title">{{tituloPrincipal}}</h1>
         <button class="button icon-left ion-checkmark-round" ng-if="verBotaoSalvar" on-tap="acaoSalvar()">Salvar</button>
     </ion-header-bar>
@@ -29,5 +29,3 @@
         </ion-tabs>
     </form>
 </ion-view>
-
-

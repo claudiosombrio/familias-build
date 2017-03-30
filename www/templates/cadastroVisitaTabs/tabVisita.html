@@ -1,4 +1,4 @@
-<!--<ion-view>-->
+<ion-view>
     <ion-content padding="true">
         <!--        <p>Profissional: Maria da Rosa e Silva</p>
                 <label>Área/M. Área: Bairro São João / 7</label>-->
@@ -15,26 +15,25 @@
                     <i ng-if="visita.codigoIndividuo" class="icon ion-ios7-close" on-tap="limparIndividuo();$event.stopPropagation()" ></i>
                     <span>{{visita.nomeIndividuo}}</span>
                 </div>
-            </label>            
+            </label>
             <li class="item item-checkbox">
                 <label class="checkbox">
                     <input type="checkbox" ng-model="visita.compartilhada" ng-true-value="1" ng-false-value="0" >
                 </label>
                 <div class="input-label c-input-full-content c-input-title">Visita Compartilhada?</div>
-            </li>            
+            </li>
 
-<!--            <div class="item item-icon-left" href="#">
+            <!--            <div class="item item-icon-left" href="#">
                 <i class="icon ion-earth"></i>
                 <div>
                     <i class="icon ion-looping"></i>
                 </div>
                 <div class="input-label c-input-full-content c-input-title">{{bind.gpsMsg}}</div>
             </div>-->
-        </div>        
+        </div>
         <div class="card">
             <div class="item item-divider item-icon-left c-input-title">
-                <i ng-class="bind.iconeLocalizacao"></i>
-                Localização
+                <i ng-class="bind.iconeLocalizacao"></i> Localização
                 <i class="icon ion-android-sync"></i>
             </div>
             <div class="item item-text-wrap">
@@ -43,10 +42,8 @@
                     <button class="button button-positive button-small" on-tap="pesquisarGps()">
                         Tentar Novamente
                     </button>
-                </div>            
+                </div>
             </div>
-        </div>        
+        </div>
     </ion-content>
-<!--</ion-view>-->
-
-
+</ion-view>

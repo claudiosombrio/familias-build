@@ -3,9 +3,9 @@ controllers.controller('agendasPendentesCtrl', ['$scope', '$state', 'DB', '$stat
         $ionicLoading.show({
             template: 'Carregando...'
         });
-        
+
         $scope.verBotaoVoltar = true;
-        
+
         $scope.bind = {};
         $scope.tituloPrincipal = 'Agendas Pendentes';
         $scope.idIndividuo = $stateParams.idIndividuo;
@@ -22,20 +22,20 @@ controllers.controller('agendasPendentesCtrl', ['$scope', '$state', 'DB', '$stat
         }).then(function (modal) {
             $scope.bind.modalMotivos = modal;
         });
-        
+
         $scope.fecharMotivos = function(){
             $scope.bind.modalMotivos.hide();
-        };        
+        };
 
         $scope.escolherMotivo = function(agenda){
             $scope.bind.agendaSelecionada = agenda;
             DB.query("SELECT id, outros, descricao FROM motivoNaoComparecimento ORDER BY descricao ", []).then(function (result) {
                 $scope.bind.motivos = DB.fetchAll(result);
-                
+
                 $scope.bind.modalMotivos.show();
             });
         };
-        
+
         $scope.motivoSelecionado = function(item){
             if(item.outros == 1){
                 $scope.popupMotivo(item);
@@ -44,7 +44,7 @@ controllers.controller('agendasPendentesCtrl', ['$scope', '$state', 'DB', '$stat
                 $scope.naoCompareceuItem($scope.bind.agendaSelecionada, item.id, null);
                 $scope.fecharMotivos();
             }
-        };        
+        };
 
         $scope.popupMotivo = function(item) {
             var popupOutroMotivo = $ionicPopup.show({
@@ -65,7 +65,7 @@ controllers.controller('agendasPendentesCtrl', ['$scope', '$state', 'DB', '$stat
                     }
                 }]
             });
-            
+
             popupOutroMotivo.then(function(res) {
                 if(res){
                     $scope.naoCompareceuItem($scope.bind.agendaSelecionada, item.id, $scope.bind.outroMotivo);
@@ -99,7 +99,7 @@ controllers.controller('agendasPendentesCtrl', ['$scope', '$state', 'DB', '$stat
                 console.error(err.message);
             });
         };
-        
+
         $scope.carregarAgendas = function () {
             DB.query("SELECT n.id," +
                     " n.tipoAgenda, " +
@@ -118,17 +118,17 @@ controllers.controller('agendasPendentesCtrl', ['$scope', '$state', 'DB', '$stat
                 console.error(err.message);
             });
         };
-        
+
         $scope.openItemOptions = function (item) {
             $scope.bind.agendaSelecionada = null;
             $scope.bind.outroMotivo = null;
-            
+
             var buttons = [];
             if($scope.bind.agendas[item].statusMobile > 0){
                 buttons.push({text: 'Limpar'});
             }
             buttons.push({text: 'Compareceu'});
-            
+
             $scope.hideSheet = $ionicActionSheet.show({
                 buttons: buttons,
                 destructiveText: 'Não Compareceu',
@@ -155,7 +155,7 @@ controllers.controller('agendasPendentesCtrl', ['$scope', '$state', 'DB', '$stat
                 }
             });
         };
-        
+
         $scope.compareceuItem = function(agenda){
             DB.query("UPDATE notificacaoAgendas SET statusMobile = 1, codigoUsuario = ? "+
                     " WHERE  id = ? ", [$scope.usuario.id, agenda.id]).then(function (result) {
@@ -186,7 +186,6 @@ controllers.controller('agendasPendentesCtrl', ['$scope', '$state', 'DB', '$stat
         $scope.$on('$destroy', function () {
             $scope.bind.modalMotivos.remove();
         });
-     
+
         $scope.carregarIndividuos();
     }]);
-

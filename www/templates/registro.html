@@ -16,12 +16,14 @@
                 <span class="input-label">Senha</span>
                 <input ng-model="senha" type="password" >
             </label>
-        </div>        
+        </div>
 
-        <button on-tap="actRegistrar()" ng-disabled="btnDisabled" class="button button-block button-balanced">
+        <button ng-hide="ressincronia" on-tap="actRegistrar()" ng-disabled="btnDisabled" class="button button-block button-balanced">
             Registrar
-        </button>    
+        </button>
+
+        <button ng-show="ressincronia" on-tap="actRegistrar(true)" ng-disabled="btnDisabled" class="button button-block button-balanced">
+            Confirmar e sincronizar
+        </button>
     </ion-content>
 </ion-view>
-
-

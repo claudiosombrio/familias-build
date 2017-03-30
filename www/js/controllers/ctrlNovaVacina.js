@@ -17,13 +17,13 @@ controllers.controller('novaVacinaCtrl', ['$scope', '$state', 'DB', '$stateParam
         $scope.limparDataAplicacao = function(){
             $scope.bind.dataAplicacao = null;
         };
-        
+
         $scope.changeDataAplicacao = function(){
             var options = {
                 date: new Date(),
                 mode: 'date'
               };
-            
+
             $cordovaDatePicker.show(options).then(function (date) {
                 if(date){
                     $scope.bind.dataAplicacao = date;
@@ -37,12 +37,12 @@ controllers.controller('novaVacinaCtrl', ['$scope', '$state', 'DB', '$stateParam
             });
             try{
                 if(isInvalid($scope.bind.tipoVacina)){
-                    throw "Infome a Vacina";
+                    throw "Informe a Vacina";
                 }
                 if(isInvalid($scope.bind.dataAplicacao)){
-                    throw "Infome a Data de Aplicação";
+                    throw "Informe a Data de Aplicação";
                 }
- 
+
                 var binding = [];
                 binding.push($scope.idIndividuo);
                 binding.push($scope.bind.tipoVacina.id);
@@ -50,20 +50,20 @@ controllers.controller('novaVacinaCtrl', ['$scope', '$state', 'DB', '$stateParam
                 binding.push($scope.bind.dataAplicacao.getTime() / 1000);
                 binding.push($scope.bind.lote);
                 binding.push($scope.bind.observacao);
-                
+
                 DB.query("INSERT INTO registroVacinas (codigoPaciente, codigoTipoVacina, codigoUsuario, dataAplicacao, lote, observacao) " +
                         " VALUES (?,?,?,?,?,?)", binding).then(function (result) {
-                            
-                    $state.go('controleVacinas', {idIndividuo: $scope.idIndividuo, idDomicilio: $scope.bind.idDomicilio});        
-                    
+
+                    $state.go('controleVacinas', {idIndividuo: $scope.idIndividuo, idDomicilio: $scope.bind.idDomicilio});
+
                 }, $scope.err);
-                
+
             }catch(err){
                 $scope.messagePopup(err);
                 return;
             }
         };
-        
+
         $scope.err = function(err){
             $scope.messagePopup(err.message);
             return true;
@@ -72,7 +72,7 @@ controllers.controller('novaVacinaCtrl', ['$scope', '$state', 'DB', '$stateParam
         $scope.messagePopup = function(msg) {
             $ionicLoading.hide();
             var deferred = $q.defer();
-            
+
             //https://github.com/driftyco/ionic/blob/master/js/angular/service/platform.js  TO VIEW PRIORITY LIST
             var deregisterBackEvent = $ionicPlatform.registerBackButtonAction(function () {}, 501);
 
@@ -83,7 +83,7 @@ controllers.controller('novaVacinaCtrl', ['$scope', '$state', 'DB', '$stateParam
                deregisterBackEvent();
                deferred.resolve();
            });
-           
+
            return deferred.promise;
         };
 
@@ -122,6 +122,5 @@ controllers.controller('novaVacinaCtrl', ['$scope', '$state', 'DB', '$stateParam
         $scope.loadTipoVacina();
 
         $ionicLoading.hide();
-        
-    }]);
 
+    }]);

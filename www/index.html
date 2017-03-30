@@ -3,6 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, width=device-width">
+        <meta http-equiv="Content-Security-Policy" content="default-src *; script-src 'self' 'unsafe-inline' 'unsafe-eval' *; style-src  'self' 'unsafe-inline' *">
+        
         <title></title>
 
         <link href="lib/ionic/css/ionic.css" rel="stylesheet">
@@ -10,13 +12,13 @@
 
 <!--        <script src="lib/ionic/js/ionic.bundle.js"></script>
         <script src="lib/ionic/js/angular/angular-resource.js"></script>-->
-        
+
         <script src="lib/ionic/js/angular/angular.js"></script>
         <script src="lib/ionic/js/angular/angular-animate.js"></script>
         <script src="lib/ionic/js/angular/angular-resource.js"></script>
         <script src="lib/ionic/js/angular/angular-sanitize.js"></script>
         <script src="lib/ionic/js/angular-ui/angular-ui-router.js"></script>
-        <script src="lib/ionic/js/ionic.js"></script>        
+        <script src="lib/ionic/js/ionic.js"></script>
         <script src="lib/ionic/js/ionic-angular.js"></script>
         <script src="js/ng-cordova.js"></script>
         <script src="js/cpf.js"></script>
@@ -32,7 +34,7 @@
         <script src="js/services.js"></script>
         <script src="js/filters.js"></script>
         <script src="js/directives.js"></script>
-        
+
         <script src="js/controllers/ctrlRegistro.js"></script>
         <script src="js/controllers/ctrlSincronizacaoInicial.js"></script>
         <script src="js/controllers/ctrlMenu.js"></script>
@@ -62,10 +64,10 @@
     </ion-header-bar>-->
 
     <ion-nav-view animation="slide-left-right"></ion-nav-view>
-    
+
     <script src="cordova.js"></script>
-   
-    
-    
+
+
+
 </body>
 </html>

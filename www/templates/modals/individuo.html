@@ -8,7 +8,11 @@
             <i class="icon ion-android-search placeholder-icon"></i>
             <input ng-change="buscarIndividuo()" ng-model="bindIndividuo.criterioIndividuo" type="search" placeholder="Procurar" />
         </label>
-    </ion-header-bar>    
+        <a ui-sref="cadastroIndividuos.tabIdentificacao" ng-click="salvarTemporario();" class="button button-positive">
+            <i class="icon ion-document"></i>
+            Novo
+        </a>
+    </ion-header-bar>
 
     <ion-content delegate-handle="contentIndividuo">
         <div class="list">
@@ -22,7 +26,7 @@
                 icon="ion-loading-c"
                 on-infinite="loadIndividuo()"
                 distance="1%">
-            </ion-infinite-scroll>        
-        </div>    
+            </ion-infinite-scroll>
+        </div>
     </ion-content>
 </ion-modal-view>

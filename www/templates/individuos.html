@@ -1,5 +1,5 @@
 <ion-view ng-controller="individuosCtrl" attach-to-window="true">
-    <ion-header-bar align-title="center" class="bar-stable" style="top: 0px;">
+    <ion-header-bar align-title="center" class="bar-stable">
         <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
         <h1 class="title">{{tituloPrincipal}}</h1>
     </ion-header-bar>
@@ -23,12 +23,12 @@
                 <i class="icon ion-document"></i>
                 Novo
             </a>
-        </div>        
-    </div>    
+        </div>
+    </div>
     <ion-content class="c-has-filter" >
         <div class="list">
             <div class="card" bindonce ng-repeat="item in itens">
-                <a style="white-space: nowrap;" class="item item-thumbnail-left" ui-sref='cadastroIndividuos.tabIdentificacao({idIndividuo: item.id})'>
+                <a style="white-space: nowrap;" class="item item-thumbnail-left" on-tap="itemToEdit(item)" ui-sref='cadastroIndividuos.tabIdentificacao({idIndividuo: item.codigoSistema})'>
                     <img ng-src="{{definirAvatar(item)}}">
                     <h2 bo-text="item.nome"></h2>
                     <div class="row" style="padding: 0px;">
@@ -47,7 +47,7 @@
                 icon="ion-loading-c"
                 on-infinite="loadMoreData()"
                 distance="1%">
-            </ion-infinite-scroll>        
-        </div>    
+            </ion-infinite-scroll>
+        </div>
     </ion-content>
 </ion-view>

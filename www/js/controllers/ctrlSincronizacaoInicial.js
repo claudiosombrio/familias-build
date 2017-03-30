@@ -1,199 +1,235 @@
-controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$ionicPopup', '$http', 'DB', 'FS', '$ionicViewService', 'SERVER',
-    function ($q, $scope, $state, $ionicPopup, $http, DB, FS, $ionicViewService, SERVER) {
-        $scope.bind = {erros: []};
+controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$ionicPopup', '$http', 'DB', 'FS', '$ionicViewService', 'SERVER', '$resource',
+    function($q, $scope, $state, $ionicPopup, $http, DB, FS, $ionicViewService, SERVER, $resource) {
+        $scope.bind = {
+            erros: []
+        };
         $scope.log = [];
         $scope.url = window.localStorage.getItem("url");
-        
+
         $scope.sincronizacaoFinalizada = window.localStorage.getItem("sincronizacaoFinalizada");
         $scope.sincronizacaoInicial = window.localStorage.getItem("sincronizacaoInicial");
         $scope.usuarioLogado = JSON.parse(window.localStorage.getItem('usuarioLogado'));
         $scope.usuarioComPermissao = false;
-        
-        if($scope.sincronizacaoFinalizada){
-            if($scope.usuarioLogado && !isNaN($scope.usuarioLogado.id) && $scope.usuarioLogado.nivel !== 'N'){
+
+        var getParams = function() {
+            SERVER.get("diassincronizacao").then(function(data) {
+                calcSinc(data);
+            });
+            SERVER.get("idadeAcompanhamento").then(function(data) {
+                window.localStorage.idadeAcompanhamento = data;
+            });
+        }
+
+        if ($scope.sincronizacaoFinalizada) { // HACK:
+            if ($scope.usuarioLogado && !isNaN($scope.usuarioLogado.id) && $scope.usuarioLogado.nivel !== 'N') {
                 $scope.usuarioComPermissao = false;
                 $scope.nova = true;
             }
             $scope.sincronizar = true;
-        }else{
+        } else {
             $ionicViewService.clearHistory();
-            if($scope.sincronizacaoInicial){
+            if ($scope.sincronizacaoInicial) {
                 $scope.nova = true;
                 $scope.continuar = true;
-            }else{
+            } else {
                 $scope.sincronizar = true;
             }
         }
-        
-        $scope.versaoExistente = function (tabela) {
-            var deferred = $q.defer();
 
-            DB.session.transaction(function (tx) {
-                var query = 'SELECT max(versao) AS versao FROM '+tabela;
-                tx.executeSql(query, [], function (transaction, result) {
+
+        if (window.localStorage.getItem('isSync')) {
+            window.localStorage.removeItem('isSync');
+            $scope.sincronizar = false;
+            $scope.nova = false;
+            window.localStorage.setItem("sincronizacaoInicial", true);
+            $scope.log.unshift('Iniciando processo de sincronização...');
+
+            getParams();
+
+            DB.deleteVersionTriggers().then(function() {
+                ressincronizarRecriar();
+            });
+        }
+
+        $scope.versaoExistente = function(tabela) {
+            var deferred = $q.defer();
+            // if (window.localStorage.getItem("sincronizacaoFinalizada") && window.localStorage.getItem("ressincronizar")){
+            //   deferred.resolve(0);
+            // }
+            DB.session.transaction(function(tx) {
+                var query = 'SELECT max(versao) AS versao FROM ' + tabela;
+                tx.executeSql(query, [], function(transaction, result) {
                     deferred.resolve(DB.fetch(result).versao);
-                }, function (transaction, error) {
+                }, function(transaction, error) {
                     deferred.reject(error);
                     return true;
                 });
             });
-
             return deferred.promise;
         };
-        
-        $scope.baixarArquivo = function(versao, nomeRecurso){
+
+        $scope.baixarArquivo = function(versao, nomeRecurso) {
+            return $scope.baixarArquivo(versao, nomeRecurso, null);
+        };
+
+        $scope.baixarArquivo = function(versao, nomeRecurso, versaoFinal) {
             var deferred = $q.defer();
-            
+
             var ft = new FileTransfer();
-            var uri = encodeURI($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                + 'nomeRecurso='+ nomeRecurso 
-                + '&versao='+versao);
+
+            var uri = $scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=' + nomeRecurso + '&versao=' + versao;
+            if (isValid(versaoFinal)) {
+                uri += '&versaoFinal=' + versaoFinal;
+            }
+            if (window.localStorage.codigoProfissional) {
+                uri += '&codigoProfissional=' + window.localStorage.codigoProfissional;
+            }
+            uri = encodeURI(uri);
             var downloadPath = "cdvfile://localhost/persistent/celk/familias/tabelaTemp.txt";
 
             ft.download(uri, downloadPath, function(entry) {
-                deferred.resolve();
-            }, 
-            function(error) {
-                deferred.reject(error);
-            });
-            
+                    deferred.resolve();
+                },
+                function(error) {
+                    deferred.reject(error);
+                });
+
             return deferred.promise;
         };
 
-        $scope.actSincronizar = function () {
+        $scope.actSincronizar = function() {
             $scope.sincronizar = false;
             $scope.nova = false;
 
             window.localStorage.setItem("sincronizacaoInicial", true);
-            
+
             $scope.iniciarSincronizacao();
         };
-        
-        $scope.actAvancar = function () {
-            if(window.localStorage.getItem('usuarioLogado') && $scope.usuarioLogado && !isNaN($scope.usuarioLogado.id)){
+
+        $scope.actAvancar = function() {
+            if (window.localStorage.getItem('usuarioLogado') && $scope.usuarioLogado && !isNaN($scope.usuarioLogado.id)) {
                 $state.go('menu');
-            }else{
+            } else {
                 $state.go('login');
             }
         };
-        
-        $scope.actContinuar = function () {
+
+        $scope.actContinuar = function() {
             $scope.nova = false;
             $scope.continuar = false;
             $scope.log = [];
-            
+
             $scope.iniciarSincronizacao();
         };
-        
-        $scope.actNova = function () {
+
+        $scope.actNova = function() {
             $scope.showConfirmation('Os dados sincronizados até o momento serão perdidos, e a sincronização começará do início. Deseja continuar?')
-                .then(function(resposta){
-                    if(resposta) {
+                .then(function(resposta) {
+                    if (resposta) {
                         $scope.novaSincronizacao();
-                    }                
+                    }
                 });
         };
-        
-        $scope.erroNaImportacao = function(){
+
+        $scope.erroNaImportacao = function() {
             DB.createVersionTriggers();
-            
-            if($scope.usuarioComPermissao){
+
+            if ($scope.usuarioComPermissao) {
                 $scope.nova = true;
             }
             $scope.continuar = true;
         };
-        
-        $scope.sucessoNaImportacao = function(){
+
+        $scope.sucessoNaImportacao = function() {
             DB.createVersionTriggers();
-            
+
             $scope.log.unshift('PROCESSO DE SINCRONIZAÇÃO FINALIZADO');
             window.localStorage.setItem("sincronizacaoFinalizada", true);
             $scope.avancar = true;
-            if($scope.bind.possuiErros){
+            window.localStorage.ressincronizar = false;
+            if ($scope.bind.possuiErros) {
                 $scope.showConfirmation('A importação gerou algumas inconsistências. Deseja resolver agora?')
-                    .then(function(resposta){
-                        if(resposta){
+                    .then(function(resposta) {
+                        if (resposta) {
                             $state.go('inconsistencias');
                         }
                     });
             }
         };
-        
-        $scope.problemaImportarArquivo = function(error){
+
+        $scope.problemaImportarArquivo = function(error) {
             $scope.log.unshift('Erro ao importar arquivo. Verifique se o servidor está disponível');
             $scope.erroNaImportacao();
         };
-        
-        $scope.problemaParse = function(){
+
+        $scope.problemaParse = function() {
             $scope.erroNaImportacao();
         };
-        
-        $scope.problemaConexao = function(){
+
+        $scope.problemaConexao = function() {
             $scope.log.unshift('Problemas na sincronização, verifique se o servidor está disponível.');
             $scope.erroNaImportacao();
         };
-        
-        $scope.failFile = function(error){
-            alert('Erro: '+ error.code);
+
+        $scope.failFile = function() {
             $scope.log.unshift('Erro no arquivo');
             $scope.erroNaImportacao();
         };
 
-        $scope.showConfirmation = function (mensagem) {
+        $scope.showConfirmation = function(mensagem) {
             var deferred = $q.defer();
             var alertPopup = $ionicPopup.confirm({
                 title: 'Atenção!',
                 template: mensagem,
-                buttons: [
-                      { text: 'Não' },
-                      {
-                        text: '<b>Sim</b>',
-                        type: 'button-positive',
-                        onTap: function(e) {
-                            return true;
-                        }
-                      }
-                    ]
+                buttons: [{
+                    text: 'Não'
+                }, {
+                    text: '<b>Sim</b>',
+                    type: 'button-positive',
+                    onTap: function(e) {
+                        return true;
+                    }
+                }]
             });
-            alertPopup.then(function (resposta) {
+            alertPopup.then(function(resposta) {
                 return deferred.resolve(resposta);
             });
-            
+
             return deferred.promise;
         };
 
-        $scope.novaSincronizacao = function(){
+        $scope.novaSincronizacao = function() {
             $scope.nova = false;
             $scope.continuar = false;
             $scope.sincronizar = false;
             $scope.log = [];
-            
+
             $scope.log.unshift('Iniciando processo de sincronização...');
+            getParams();
             DB.delete();
-            
+
             window.localStorage.removeItem("usuarioLogado");
             window.localStorage.removeItem("sincronizacaoInicial");
             window.localStorage.removeItem("sincronizacaoFinalizada");
             $ionicViewService.clearHistory();
-            
+
             $scope.log.unshift('Recriando banco...');
             DB.init();
 
             window.localStorage.setItem("sincronizacaoInicial", true);
-            DB.ready(function(){
+            DB.ready(function() {
                 $scope.iniciarSincronizacao();
             });
         };
-        
-        $scope.resolverRetorno = function(entidade, retorno, atualizaVersaoMobile){
+        $scope.resolverRetorno = function(entidade, retorno, atualizaVersaoMobile) {
             var deferred = $q.defer();
             var self = this;
             var itens = [];
             var linha = retorno.split('\n');
-            if(linha.length === 1){
+            if (linha.length === 1) {
                 $scope.bind.erros.push(entidade + ': ' + retorno);
             }
-            for (var i = 0; i < linha.length-1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -204,198 +240,266 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     mensagem: registro[4]
                 };
             }
-            
-            self.updateRetorno = function(itens){
-                if(itens.length === 0){
+
+            self.updateRetorno = function(itens) {
+                if (itens.length === 0) {
                     return deferred.resolve();
                 }
                 var obj = itens.shift();
-                if(obj.status === 1){
+                if (obj.status === 1) {
                     var sql = "UPDATE " + entidade + " SET codigoSistema = ? ";
                     var params = [];
                     params.push(obj.codigoSistema);
-                    
-                    if(atualizaVersaoMobile){
+
+                    if (atualizaVersaoMobile) {
                         params.push(0);
                         sql += ", versaoMobile = ? ";
                     }
                     params.push(obj.codigoMobile);
                     sql += " WHERE id = ? ";
-                    
-                    DB.query(sql, params).then(function(){
+
+                    DB.query(sql, params).then(function() {
                         self.updateRetorno(itens);
                     });
-                }else{
+                } else {
 
                     $scope.bind.possuiErros = true;
                     $scope.bind.erros.push(entidade + ': ' + obj.mensagem);
-                    if(entidade === 'endereco'){
-                    
-                        DB.query("SELECT d.id FROM domicilio AS d WHERE d.codigoEndereco = ? LIMIT 1", [obj.codigoMobile]).then(function(result){
+                    if (entidade === 'endereco') {
+
+                        DB.query("SELECT d.id FROM domicilio AS d WHERE d.codigoEndereco = ? LIMIT 1", [obj.codigoMobile]).then(function(result) {
                             var domicilio = DB.fetch(result);
-                            DB.query("INSERT OR IGNORE INTO erroDomicilio (codigoDomicilio, mensagem) VALUES (?, ?)", [domicilio.id, obj.mensagem]).then(function(){
+                            DB.query("INSERT OR IGNORE INTO erroDomicilio (codigoDomicilio, mensagem) VALUES (?, ?)", [domicilio.id, obj.mensagem]).then(function() {
                                 self.updateRetorno(itens);
                             });
                         });
-                    } else if(entidade === 'domicilio'){
-                        
-                        DB.query("INSERT OR IGNORE INTO erroDomicilio (codigoDomicilio, mensagem) VALUES (?, ?)", [obj.codigoMobile, obj.mensagem]).then(function(){
+                    } else if (entidade === 'domicilio') {
+
+                        DB.query("INSERT OR IGNORE INTO erroDomicilio (codigoDomicilio, mensagem) VALUES (?, ?)", [obj.codigoMobile, obj.mensagem]).then(function() {
                             self.updateRetorno(itens);
                         });
-                    } else if(entidade === 'domicilioEsus'){
-                        
-                        DB.query("SELECT d.id FROM domicilioEsus AS de LEFT JOIN domicilio AS d ON d.id = de.codigoDomicilio WHERE de.id = ? ", [obj.codigoMobile]).then(function(result){
+                    } else if (entidade === 'domicilioEsus') {
+
+                        DB.query("SELECT d.id FROM domicilioEsus AS de LEFT JOIN domicilio AS d ON d.id = de.codigoDomicilio WHERE de.id = ? ", [obj.codigoMobile]).then(function(result) {
                             var domicilio = DB.fetch(result);
-                            DB.query("INSERT OR IGNORE INTO erroDomicilio (codigoDomicilio, mensagem) VALUES (?, ?)", [domicilio.id, obj.mensagem]).then(function(){
+                            DB.query("INSERT OR IGNORE INTO erroDomicilio (codigoDomicilio, mensagem) VALUES (?, ?)", [domicilio.id, obj.mensagem]).then(function() {
                                 self.updateRetorno(itens);
                             });
                         });
-                    } else if(entidade === 'paciente'){
+                    } else if (entidade === 'paciente') {
 
-                        DB.query("INSERT OR IGNORE INTO erroPaciente (codigoPaciente, mensagem) VALUES (?, ?)", [obj.codigoMobile, obj.mensagem]).then(function(){
+                        DB.query("INSERT OR IGNORE INTO erroPaciente (codigoPaciente, mensagem) VALUES (?, ?)", [obj.codigoMobile, obj.mensagem]).then(function() {
                             self.updateRetorno(itens);
                         });
-                        
-                    } else if(entidade === 'pacienteEsus'){
 
-                        DB.query("SELECT p.id FROM pacienteEsus AS pe LEFT JOIN paciente AS p ON p.id = pe.codigoPaciente WHERE pe.id = ? ", [obj.codigoMobile]).then(function(result){
+                    } else if (entidade === 'pacienteEsus') {
+
+                        DB.query("SELECT p.id FROM pacienteEsus AS pe LEFT JOIN paciente AS p ON p.id = pe.codigoPaciente WHERE pe.id = ? ", [obj.codigoMobile]).then(function(result) {
                             var paciente = DB.fetch(result);
-                            DB.query("INSERT OR IGNORE INTO erroPaciente (codigoPaciente, mensagem) VALUES (?, ?)", [paciente.id, obj.mensagem]).then(function(){
+                            DB.query("INSERT OR IGNORE INTO erroPaciente (codigoPaciente, mensagem) VALUES (?, ?)", [paciente.id, obj.mensagem]).then(function() {
                                 self.updateRetorno(itens);
                             });
                         });
-                        
-                    } else if(entidade === 'cns'){
 
-                        DB.query("SELECT p.id FROM cns AS cns LEFT JOIN paciente AS p ON p.id = cns.codigoPaciente WHERE cns.id = ? ", [obj.codigoMobile]).then(function(result){
+                    } else if (entidade === 'cns') {
+
+                        DB.query("SELECT p.id FROM cns AS cns LEFT JOIN paciente AS p ON p.id = cns.codigoPaciente WHERE cns.id = ? ", [obj.codigoMobile]).then(function(result) {
                             var paciente = DB.fetch(result);
-                            DB.query("INSERT OR IGNORE INTO erroPaciente (codigoPaciente, mensagem) VALUES (?, ?)", [paciente.id, obj.mensagem]).then(function(){
+                            DB.query("INSERT OR IGNORE INTO erroPaciente (codigoPaciente, mensagem) VALUES (?, ?)", [paciente.id, obj.mensagem]).then(function() {
                                 self.updateRetorno(itens);
                             });
                         });
-                        
-                    } else if(entidade === 'documentos'){
 
-                        DB.query("SELECT p.id FROM documentos AS doc LEFT JOIN paciente AS p ON p.id = doc.codigoPaciente WHERE doc.id = ? ", [obj.codigoMobile]).then(function(result){
+                    } else if (entidade === 'documentos') {
+
+                        DB.query("SELECT p.id FROM documentos AS doc LEFT JOIN paciente AS p ON p.id = doc.codigoPaciente WHERE doc.id = ? ", [obj.codigoMobile]).then(function(result) {
                             var paciente = DB.fetch(result);
-                            DB.query("INSERT OR IGNORE INTO erroPaciente (codigoPaciente, mensagem) VALUES (?, ?)", [paciente.id, obj.mensagem]).then(function(){
+                            DB.query("INSERT OR IGNORE INTO erroPaciente (codigoPaciente, mensagem) VALUES (?, ?)", [paciente.id, obj.mensagem]).then(function() {
                                 self.updateRetorno(itens);
                             });
                         });
-                        
+
                     }
                 }
             };
-            
+
             self.updateRetorno(itens);
             return deferred.promise;
         };
-        
-        $scope.addProp = function(value){
+
+        $scope.addProp = function(value) {
             //Remove | do valor e adiciona um | no final do campo
             return invalidToEmpty(value).toString().split('|').join('') + '|';
         };
-        
-        $scope.deletarRegistrosInconsistentes = function(){
+
+        $scope.deletarRegistrosInconsistentes = function() {
             var deferred = $q.defer();
-            
-            DB.query("DELETE FROM erroDomicilio;", []).then(function(){
-                DB.query("DELETE FROM erroPaciente;", []).then(function(){
+
+            DB.query("DELETE FROM erroDomicilio;", []).then(function() {
+                DB.query("DELETE FROM erroPaciente;", []).then(function() {
                     return deferred.resolve();
                 });
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarRecursos = function(){
-            var deferred = $q.defer();
-            
-            $scope.deletarRegistrosInconsistentes().then(function () {
-                $scope.enviarEndereco().then(function () {
-                    $scope.log.unshift('ENDERECO FINALIZADO');
-                    $scope.enviarDomicilio().then(function () {
-                        $scope.log.unshift('DOMICILIO FINALIZADO');
-                        $scope.enviarDomicilioEsus().then(function () {
-                            $scope.log.unshift('DOMICILIO ESUS FINALIZADO');
-                            $scope.enviarResponsaveis().then(function () {
-                                $scope.log.unshift('RESPONSAVEIS ENVIADOS');
-                                $scope.enviarPacientes().then(function () {
-                                    $scope.log.unshift('PACIENTES ENVIADOS');
-                                    $scope.enviarPacienteEsus().then(function () {
-                                        $scope.log.unshift('PACIENTES ESUS ENVIADOS');
-                                        $scope.enviarCns().then(function () {
-                                            $scope.log.unshift('CNS ENVIADOS');
-                                            $scope.enviarDocumentos().then(function () {
-                                                $scope.log.unshift('DOCUMENTOS ENVIADOS');
-                                                $scope.enviarPacienteDado().then(function () {
-                                                    $scope.log.unshift('PACIENTES DADO ENVIADOS');
-                                                    $scope.enviarVisitas().then(function () {
-                                                        $scope.log.unshift('VISITAS ENVIADAS');
-                                                        $scope.enviarNotificacoesAgendamentos().then(function () {
-                                                            $scope.log.unshift('NOTIFICACOES DE AGENDAMENTOS ENVIADAS');
-                                                            $scope.enviarRegistroVacina().then(function () {
-                                                                $scope.log.unshift('REGISTROS DE VACINAS ENVIADAS');
-                                                                $scope.enviarImagensVacina().then(function () {
-                                                                    $scope.log.unshift('IMAGENS DE VACINAS ENVIADAS');
 
-                                                                    return deferred.resolve();
-                                                                },function () {
-                                                                        $scope.problemaConexao();
-                                                                    });
-                                                            },function () {
-                                                                    $scope.problemaConexao();
-                                                                });
-                                                        },function () {
-                                                                $scope.problemaConexao();
-                                                            });
-                                                    },function () {
-                                                            $scope.problemaConexao();
-                                                        });
-                                                },function () {
-                                                        $scope.problemaConexao();
-                                                    });
-                                            },function () {
-                                                    $scope.problemaConexao();
-                                                });
-                                        },function () {
-                                                $scope.problemaConexao();
-                                            });
-                                    },function () {
-                                            $scope.problemaConexao();
-                                        });
-                                },function () {
-                                        $scope.problemaConexao();
-                                    });
-                            },function () {
-                                    $scope.problemaConexao();
-                                });
-                        },function () {
-                                $scope.problemaConexao();
-                            });
-                    },function () {
-                            $scope.problemaConexao();
-                        });
-                },function () {
-                        $scope.problemaConexao();
+        var porFiltro = function() {
+            if (window.localStorage.filtrarPor !== 'T') {
+                DB.deleteVersionTriggers().then(function() {
+                    var tablesToDrop = ['cns', 'documentos', 'pacienteDado', 'notificacaoAgendas', 'registroVacinas', 'pacienteResponsavelAux', 'pacienteEsus', 'domicilioEsus', 'visitaDomiciliar', 'vacinasImagens', 'paciente', 'domicilio', 'endereco'];
+                    var sql = '';
+
+                    tablesToDrop.forEach(function(item) {
+                        sql = sql + 'DELETE FROM ' + item + ' ;|';
                     });
-            },function () {
-                    $scope.problemaConexao();
+
+                    sql = sql.split('|');
+                    var contador = 0;
+
+                    sql.forEach(function(item) {
+                        contador++;
+                        var currentTable = item.split(' ')[2];
+                        if (currentTable) {
+                            $scope.log.unshift('Limpando ' + currentTable);
+                        }
+                        if (contador === sql.length - 1) {
+                            DB.query(item, []).then(function() {
+                                $scope.carregarVersoes();
+                            }, function(e) {
+                                console.error(e);
+                            });
+                        } else if (contador <= sql.length - 1) {
+                            DB.query(item, []).then(function() {}, function(e) {
+                                console.error(e);
+                            });
+                        }
+                    });
+
                 });
 
-
-            return deferred.promise;
+            } else {
+                DB.deleteVersionTriggers().then(function() {
+                    $scope.carregarVersoes();
+                });
+            }
         };
-        
-        $scope.enviarVisitas = function(){
+
+        var limparCodigoNullDominio = function() {
+            DB.query("DELETE FROM dominioPaciente WHERE codigoSistema is null;", []).then(function() {
+                // return deferred.resolve();
+            });
+        }
+        var limparCodigoInternoDominio = function(suc,err) {
+            var updateSql1 = "UPDATE dominioPaciente set codigoInterno = null where codigoInterno is not null;"
+
+            var updateSql2 = "UPDATE dominioPaciente set codigoInterno = (SELECT id FROM paciente WHERE codigoSistema = dominioPaciente.codigoSistema) "
+                            + "where exists (SELECT 1 FROM paciente WHERE codigoSistema = dominioPaciente.codigoSistema);"
+            DB.query(updateSql2, []).then(suc, err)
+        }
+
+
+        $scope.enviarRecursos = function() {
+
+            $scope.deletarRegistrosInconsistentes().then(function() {
+                $scope.enviarEndereco().then(function() {
+                    $scope.log.unshift('ENDERECO FINALIZADO');
+                    $scope.enviarDomicilio().then(function() {
+                        $scope.log.unshift('DOMICILIO FINALIZADO');
+                        $scope.enviarDomicilioEsus().then(function() {
+                            $scope.log.unshift('DOMICILIO ESUS FINALIZADO');
+                            $scope.enviarResponsaveis().then(function() {
+                                $scope.log.unshift('RESPONSAVEIS ENVIADOS');
+                                $scope.enviarPacientes().then(function() {
+                                    $scope.log.unshift('PACIENTES ENVIADOS');
+                                    $scope.enviarPacienteEsus().then(function() {
+                                        $scope.log.unshift('PACIENTES ESUS ENVIADOS');
+                                        $scope.enviarCns().then(function() {
+                                            $scope.log.unshift('CNS ENVIADOS');
+                                            $scope.enviarDocumentos().then(function() {
+                                                $scope.log.unshift('DOCUMENTOS ENVIADOS');
+                                                $scope.enviarPacienteDado().then(function() {
+                                                    $scope.log.unshift('PACIENTES DADO ENVIADOS');
+                                                    $scope.enviarVisitas().then(function() {
+                                                        $scope.log.unshift('VISITAS ENVIADAS');
+                                                        $scope.enviarNotificacoesAgendamentos().then(function() {
+                                                            $scope.log.unshift('NOTIFICACOES DE AGENDAMENTOS ENVIADAS');
+                                                            $scope.enviarRegistroVacina().then(function() {
+                                                                $scope.log.unshift('REGISTROS DE VACINAS ENVIADAS');
+                                                                $scope.enviarImagensVacina().then(function() {
+                                                                    $scope.log.unshift('IMAGENS DE VACINAS ENVIADAS');
+                                                                    $scope.enviarPesquisas().then(function() {
+                                                                        $scope.log.unshift('PESQUISAS ENVIADAS');
+                                                                        if (!$scope.bind.possuiErros) {
+                                                                            porFiltro();
+                                                                            limparCodigoNullDominio();
+                                                                        }
+
+                                                                    }, function() {
+                                                                        $scope.problemaConexao();
+                                                                    });
+                                                                }, function() {
+                                                                    $scope.problemaConexao();
+                                                                });
+                                                            }, function() {
+                                                                $scope.problemaConexao();
+                                                            });
+                                                        }, function() {
+                                                            $scope.problemaConexao();
+                                                        });
+                                                    }, function() {
+                                                        $scope.problemaConexao();
+                                                    });
+                                                }, function() {
+                                                    $scope.problemaConexao();
+                                                });
+                                            }, function() {
+                                                $scope.problemaConexao();
+                                            });
+                                        }, function() {
+                                            $scope.problemaConexao();
+                                        });
+                                    }, function() {
+                                        $scope.problemaConexao();
+                                    });
+                                }, function() {
+                                    $scope.problemaConexao();
+                                });
+                            }, function() {
+                                $scope.problemaConexao();
+                            });
+                        }, function() {
+                            $scope.problemaConexao();
+                        });
+                    }, function() {
+                        $scope.problemaConexao();
+                    });
+                }, function() {
+                    $scope.problemaConexao();
+                });
+            }, function() {
+                $scope.problemaConexao();
+            });
+
+        };
+
+        $scope.enviarVisitas = function() {
             var deferred = $q.defer();
-            
-            var montarVisitas = function(visita){
+
+            var montarVisitas = function(visita) {
                 var l = '';
                 l += $scope.addProp(visita.codigoSistema);
                 l += $scope.addProp(visita.id);
-                l += $scope.addProp(visita.codigoSistemaUsuario);
-                l += $scope.addProp(visita.codigoSistemaDomicilio);
+                if (isInvalid(visita.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(visita.codigoSistemaUsuario);
+                }
+                if (isInvalid(visita.codigoSistemaDomicilio)) {
+                    l += $scope.addProp(0);
+                } else {
+                    l += $scope.addProp(visita.codigoSistemaDomicilio);
+                }
                 l += $scope.addProp(visita.dataVisitaFormatada);
                 l += $scope.addProp(visita.horaVisitaFormatada);
                 l += $scope.addProp(visita.compartilhada);
@@ -436,51 +540,53 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(visita.horaColetaGpsFormatada);
                 l += $scope.addProp(visita.latitude);
                 l += $scope.addProp(visita.longitude);
-                
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
             //VISITAS
-            var sql = "SELECT v.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " p.codigoSistema AS codigoSistemaPaciente,"+
-                    " dom.codigoSistema AS codigoSistemaDomicilio,"+
-                    " strftime('%d-%m-%Y', v.dataVisita, 'unixepoch') AS dataVisitaFormatada,"+
-                    " strftime('%H:%M:%S', v.dataVisita, 'unixepoch', 'localtime') AS horaVisitaFormatada,"+
-                    " strftime('%d-%m-%Y', v.dataColetaGps, 'unixepoch') AS dataColetaGpsFormatada,"+
-                    " strftime('%H:%M:%S', v.horaColetaGps, 'unixepoch', 'localtime') AS horaColetaGpsFormatada"+
-                    " FROM visitaDomiciliar v"+
-                    " LEFT JOIN usuarios AS u ON u.id = v.codigoUsuario "+
-                    " LEFT JOIN paciente AS p ON p.id = v.codigoPaciente "+
-                    " LEFT JOIN domicilio AS dom ON dom.id = v.codigoDomicilio ";
-//                    " WHERE v.versaoMobile > ? AND doc.excluido = 'N' ";
-            
-            DB.query(sql, []).then(function(result){
+            var sql = "SELECT v.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " p.codigoSistema AS codigoSistemaPaciente," +
+                " dom.codigoSistema AS codigoSistemaDomicilio," +
+                " strftime('%d-%m-%Y', v.dataVisita, 'unixepoch') AS dataVisitaFormatada," +
+                " strftime('%H:%M:%S', v.dataVisita, 'unixepoch', 'localtime') AS horaVisitaFormatada," +
+                " strftime('%d-%m-%Y', v.dataColetaGps, 'unixepoch') AS dataColetaGpsFormatada," +
+                " strftime('%H:%M:%S', v.horaColetaGps, 'unixepoch', 'localtime') AS horaColetaGpsFormatada" +
+                " FROM visitaDomiciliar v" +
+                " LEFT JOIN usuarios AS u ON u.id = v.codigoUsuario" +
+                " LEFT JOIN paciente AS p ON p.id = v.codigoPaciente" +
+                " LEFT JOIN domicilio AS dom ON dom.id = v.codigoDomicilio" +
+                " WHERE v.codigoSistema is null" +
+                " AND u.codigoSistema is not null" +
+                " AND p.codigoSistema is not null" +
+                " AND dom.codigoSistema is not null";
+
+            DB.query(sql, []).then(function(result) {
                 var visita = DB.fetchAll(result);
-                if(visita.length > 0){
+                if (visita.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < visita.length; i++){
+                    for (var i = 0; i < visita.length; i++) {
                         layout += montarVisitas(visita[i]) + '\n';
                     }
-                    SERVER.post('visita_domiciliar', layout).then(function(data){
-                        DB.query("DELETE FROM visitaDomiciliar ", []).then(function(result){
+                    SERVER.post('visita_domiciliar', layout).then(function(data) {
+                        $scope.resolverRetorno('visitaDomiciliar', data, false).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarNotificacoesAgendamentos = function(){
+
+        $scope.enviarNotificacoesAgendamentos = function() {
             var deferred = $q.defer();
-            
-            var montarNotificacoes = function(agenda){
+
+            var montarNotificacoes = function(agenda) {
                 var l = '';
                 l += $scope.addProp(agenda.codigoSistema);
                 l += $scope.addProp(agenda.id);
@@ -488,43 +594,42 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(agenda.statusMobile);
                 l += $scope.addProp(agenda.codigoSistemaMotivo);
                 l += $scope.addProp(agenda.descricaoOutroMotivo);
-                
-                
-                return l.substring(0, l.length-1);
+
+
+                return l.substring(0, l.length - 1);
             };
 
-            var sql = "SELECT n.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " m.codigoSistema AS codigoSistemaMotivo"+
-                    " FROM notificacaoAgendas n"+
-                    " LEFT JOIN usuarios AS u ON u.id = n.codigoUsuario "+
-                    " LEFT JOIN motivoNaoComparecimento AS m ON m.id = n.codigoMotivo "+
-                    " WHERE n.versaoMobile > ? ";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT n.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " m.codigoSistema AS codigoSistemaMotivo" +
+                " FROM notificacaoAgendas n" +
+                " LEFT JOIN usuarios AS u ON u.id = n.codigoUsuario " +
+                " LEFT JOIN motivoNaoComparecimento AS m ON m.id = n.codigoMotivo";
+
+            DB.query(sql).then(function(result) {
                 var notificacoes = DB.fetchAll(result);
-                if(notificacoes.length > 0){
+                if (notificacoes.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < notificacoes.length; i++){
+                    for (var i = 0; i < notificacoes.length; i++) {
                         layout += montarNotificacoes(notificacoes[i]) + '\n';
                     }
-                    SERVER.post('NOTIFICACAO_AGENDAS', layout).then(function(data){
+                    SERVER.post('NOTIFICACAO_AGENDAS', layout).then(function(data) {
                         return deferred.resolve();
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarRegistroVacina = function(){
+
+        $scope.enviarRegistroVacina = function() {
             var deferred = $q.defer();
-            
-            var montarRegistros = function(registro){
+
+            var montarRegistros = function(registro) {
                 var l = '';
                 l += $scope.addProp(registro.codigoSistema);
                 l += $scope.addProp(registro.id);
@@ -534,93 +639,147 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(registro.dataAplicacaoFormatada);
                 l += $scope.addProp(registro.lote);
                 l += $scope.addProp(registro.observacao);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
 
-            var sql = "SELECT r.*, "+
-                    " strftime('%d-%m-%Y', r.dataAplicacao, 'unixepoch') AS dataAplicacaoFormatada,"+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " p.codigoSistema AS codigoSistemaPaciente,"+
-                    " t.codigoSistema AS codigoSistemaVacina"+
-                    " FROM registroVacinas r"+
-                    " LEFT JOIN usuarios AS u ON u.id = r.codigoUsuario "+
-                    " LEFT JOIN tipoVacina AS t ON t.id = r.codigoTipoVacina "+
-                    " LEFT JOIN paciente AS p ON p.id = r.codigoPaciente ";
-            
-            DB.query(sql, []).then(function(result){
+            var sql = "SELECT r.*, " +
+                " strftime('%d-%m-%Y', r.dataAplicacao, 'unixepoch') AS dataAplicacaoFormatada," +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " p.codigoSistema AS codigoSistemaPaciente," +
+                " t.codigoSistema AS codigoSistemaVacina" +
+                " FROM registroVacinas r" +
+                " LEFT JOIN usuarios AS u ON u.id = r.codigoUsuario " +
+                " LEFT JOIN tipoVacina AS t ON t.id = r.codigoTipoVacina " +
+                " LEFT JOIN paciente AS p ON p.id = r.codigoPaciente";
+
+            DB.query(sql).then(function(result) {
                 var registros = DB.fetchAll(result);
-                if(registros.length > 0){
+                if (registros.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < registros.length; i++){
+                    for (var i = 0; i < registros.length; i++) {
                         layout += montarRegistros(registros[i]) + '\n';
                     }
-                    SERVER.post('REGISTRO_VACINAS', layout).then(function(data){
+                    SERVER.post('REGISTRO_VACINAS', layout).then(function(data) {
                         DB.query('DELETE FROM registroVacinas;', []);
-                        
+
                         return deferred.resolve();
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarImagensVacina = function(){
+
+        $scope.enviarImagensVacina = function() {
             var deferred = $q.defer();
-            
-            var montarRegistros = function(registro){
+
+            var montarRegistros = function(registro) {
                 var l = '';
                 l += $scope.addProp(registro.codigoSistema);
                 l += $scope.addProp(registro.id);
                 l += $scope.addProp(registro.codigoSistemaUsuario);
                 l += $scope.addProp(registro.codigoSistemaPaciente);
                 l += $scope.addProp(registro.imagem);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
 
-            var sql = "SELECT v.*, "+
-                " u.codigoSistema AS codigoSistemaUsuario,"+
-                " p.codigoSistema AS codigoSistemaPaciente"+
-                " FROM vacinasImagens v"+
-                " LEFT JOIN usuarios AS u ON u.id = v.codigoUsuario "+
-                " LEFT JOIN paciente AS p ON p.id = v.codigoPaciente ";
-            
-            DB.query(sql, []).then(function(result){
+            var sql = "SELECT v.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " p.codigoSistema AS codigoSistemaPaciente" +
+                " FROM vacinasImagens v" +
+                " LEFT JOIN usuarios AS u ON u.id = v.codigoUsuario " +
+                " LEFT JOIN paciente AS p ON p.id = v.codigoPaciente";
+
+            DB.query(sql).then(function(result) {
                 var registros = DB.fetchAll(result);
-                if(registros.length > 0){
+                if (registros.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < registros.length; i++){
+                    for (var i = 0; i < registros.length; i++) {
                         layout += montarRegistros(registros[i]) + '\n';
                     }
-                    SERVER.post('VACINAS_IMAGENS', layout).then(function(data){
+                    SERVER.post('VACINAS_IMAGENS', layout).then(function(data) {
                         DB.query('DELETE FROM vacinasImagens;', []);
-                        
+
                         return deferred.resolve();
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarDocumentos = function(){
+
+        $scope.enviarPesquisas = function() {
             var deferred = $q.defer();
-            
-            var montarDocumentos = function(documentos){
+
+            var montarRegistros = function(registro) {
+                var l = '';
+                l += $scope.addProp(registro.codigoSistema);
+                l += $scope.addProp(registro.id);
+                l += $scope.addProp(registro.codigoSistemaUsuario);
+                l += $scope.addProp(registro.codigoSistemaResposta);
+                l += $scope.addProp(registro.codigoSistemaVisita);
+                l += $scope.addProp(registro.codigoSistemaPesquisaPergunta);
+
+                return l.substring(0, l.length - 1);
+            };
+
+            var sql = "SELECT p.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " pr.codigoSistema AS codigoSistemaResposta, " +
+                " v.codigoSistema AS codigoSistemaVisita, " +
+                " pp.codigoSistema AS codigoSistemaPesquisaPergunta" +
+                " FROM pesquisaVisita p" +
+                " LEFT JOIN usuarios AS u ON u.id = p.codigoUsuario " +
+                " LEFT JOIN perguntaResposta AS pr ON pr.id = p.codigoResposta " +
+                " LEFT JOIN visitaDomiciliar AS v ON v.id = p.codigoVisita " +
+                " LEFT JOIN pesquisaPergunta AS pp ON pp.id = p.codigoPesquisaPergunta";
+
+            DB.query(sql).then(function(result) {
+                var registros = DB.fetchAll(result);
+                if (registros.length > 0) {
+                    var layout = '';
+                    for (var i = 0; i < registros.length; i++) {
+                        layout += montarRegistros(registros[i]) + '\n';
+                    }
+                    SERVER.post('PESQUISA_VISITA', layout).then(function(data, status, headers) {
+                        DB.query('DELETE FROM pesquisaVisita;', []).then(function() {
+                            DB.query("DELETE FROM visitaDomiciliar;", []);
+                        });
+
+                        return deferred.resolve();
+                    }, function() {
+                        return deferred.reject();
+                    });
+                } else {
+                    return deferred.resolve();
+                }
+            });
+
+            return deferred.promise;
+        };
+
+        $scope.enviarDocumentos = function() {
+            var deferred = $q.defer();
+
+            var montarDocumentos = function(documentos) {
                 var l = '';
                 l += $scope.addProp(documentos.codigoSistema);
                 l += $scope.addProp(documentos.id);
-                l += $scope.addProp(documentos.codigoSistemaUsuario);
+                if (isInvalid(documentos.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(documentos.codigoSistemaUsuario);
+                }
                 l += $scope.addProp(documentos.tipoDocumento);
                 l += $scope.addProp(documentos.numeroDocumento);
                 l += $scope.addProp(documentos.complemento);
@@ -634,142 +793,151 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(documentos.siglaUf);
                 l += $scope.addProp(documentos.codigoSistemaPaciente);
                 l += $scope.addProp(documentos.excluido);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
             //DOCUMENTOS
-            var sql = "SELECT doc.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " p.codigoSistema AS codigoSistemaPaciente,"+
-                    " oe.codigoSistema AS codigoSistemaOrgaoEmissor,"+
-                    " strftime('%d-%m-%Y', doc.dataEmissao, 'unixepoch') AS dataEmissaoFormatada"+
-                    " FROM documentos doc"+
-                    " LEFT JOIN paciente AS p ON p.id = doc.codigoPaciente "+
-                    " LEFT JOIN usuarios AS u ON u.id = doc.codigoUsuario "+
-                    " LEFT JOIN orgaoEmissor AS oe ON oe.id = doc.codigoOrgaoEmissor "+
-                    " WHERE doc.versaoMobile > ? AND NOT EXISTS (SELECT * FROM erroPaciente AS ep WHERE ep.codigoPaciente = p.id)";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT doc.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " p.codigoSistema AS codigoSistemaPaciente," +
+                " oe.codigoSistema AS codigoSistemaOrgaoEmissor," +
+                " strftime('%d-%m-%Y', doc.dataEmissao, 'unixepoch') AS dataEmissaoFormatada" +
+                " FROM documentos doc" +
+                " LEFT JOIN paciente AS p ON p.id = doc.codigoPaciente " +
+                " LEFT JOIN usuarios AS u ON u.id = doc.codigoUsuario " +
+                " LEFT JOIN orgaoEmissor AS oe ON oe.id = doc.codigoOrgaoEmissor " +
+                " WHERE NOT EXISTS (SELECT * FROM erroPaciente AS ep WHERE ep.codigoPaciente = p.id) AND doc.versaoMobile > ?";
+
+            DB.query(sql, [0]).then(function(result) {
                 var documentos = DB.fetchAll(result);
-                if(documentos.length > 0){
+                if (documentos.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < documentos.length; i++){
+                    for (var i = 0; i < documentos.length; i++) {
                         layout += montarDocumentos(documentos[i]) + '\n';
                     }
-                    SERVER.post('documentos', layout).then(function(data){
-                        $scope.resolverRetorno('documentos', data, true).then(function(){
+                    SERVER.post('documentos', layout).then(function(data) {
+                        $scope.resolverRetorno('documentos', data, true).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarCns = function(){
+
+        $scope.enviarCns = function() {
             var deferred = $q.defer();
-            
-            var montarCns = function(cns){
+
+            var montarCns = function(cns) {
                 var l = '';
                 l += $scope.addProp(cns.codigoSistema);
                 l += $scope.addProp(cns.id);
-                l += $scope.addProp(cns.codigoSistemaUsuario);
+                if (isInvalid(cns.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(cns.codigoSistemaUsuario);
+                }
                 l += $scope.addProp(cns.numeroCartao);
                 l += $scope.addProp(cns.codigoSistemaPaciente);
                 l += $scope.addProp(cns.excluido);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
             //CNS
-            var sql = "SELECT cns.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " p.codigoSistema AS codigoSistemaPaciente"+
-                    " FROM Cns cns"+
-                    " LEFT JOIN paciente AS p ON p.id = cns.codigoPaciente "+
-                    " LEFT JOIN usuarios AS u ON u.id = cns.codigoUsuario "+
-                    " WHERE cns.versaoMobile > ? AND NOT EXISTS (SELECT * FROM erroPaciente AS ep WHERE ep.codigoPaciente = p.id)";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT cns.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " p.codigoSistema AS codigoSistemaPaciente" +
+                " FROM Cns cns" +
+                " LEFT JOIN paciente AS p ON p.id = cns.codigoPaciente " +
+                " LEFT JOIN usuarios AS u ON u.id = cns.codigoUsuario " +
+                " WHERE NOT EXISTS (SELECT * FROM erroPaciente AS ep WHERE ep.codigoPaciente = p.id) AND cns.versaoMobile > ?";
+
+            DB.query(sql, [0]).then(function(result) {
                 var cns = DB.fetchAll(result);
-                if(cns.length > 0){
+                if (cns.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < cns.length; i++){
+                    for (var i = 0; i < cns.length; i++) {
                         layout += montarCns(cns[i]) + '\n';
                     }
-                    SERVER.post('cns', layout).then(function(data){
-                        $scope.resolverRetorno('cns', data, true).then(function(){
+                    SERVER.post('cns', layout).then(function(data) {
+                        $scope.resolverRetorno('cns', data, true).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function(e, status) {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarPacienteDado = function(){
+
+        $scope.enviarPacienteDado = function() {
             var deferred = $q.defer();
-            
-            var montarPacienteDado = function(pacienteDado){
+
+            var montarPacienteDado = function(pacienteDado) {
                 var l = '';
                 l += $scope.addProp(null);
                 l += $scope.addProp(pacienteDado.codigoSistemaPaciente);
-                l += $scope.addProp(pacienteDado.codigoSistemaUsuario);
+                if (isInvalid(pacienteDado.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(pacienteDado.codigoSistemaUsuario);
+                }
                 l += $scope.addProp(pacienteDado.dataColetaFormatada);
                 l += $scope.addProp(pacienteDado.peso);
                 l += $scope.addProp(pacienteDado.altura);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
             //PACIENTE DADO
-            var sql = "SELECT pd.*, "+
-                    " strftime('%d-%m-%Y %H:%M:%S', pd.dataColeta, 'unixepoch') AS dataColetaFormatada,"+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " p.codigoSistema AS codigoSistemaPaciente"+
-                    " FROM PacienteDado pd"+
-                    " LEFT JOIN paciente AS p ON p.id = pd.codigoPaciente "+
-                    " LEFT JOIN usuarios AS u ON u.id = pd.codigoUsuario "+
-                    " WHERE pd.versaoMobile > ? ";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT pd.*, " +
+                " strftime('%d-%m-%Y %H:%M:%S', pd.dataColeta, 'unixepoch') AS dataColetaFormatada," +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " p.codigoSistema AS codigoSistemaPaciente" +
+                " FROM PacienteDado pd" +
+                " LEFT JOIN paciente AS p ON p.id = pd.codigoPaciente " +
+                " LEFT JOIN usuarios AS u ON u.id = pd.codigoUsuario WHERE pd.versaoMobile > ?";
+
+            DB.query(sql, [0]).then(function(result) {
                 var pd = DB.fetchAll(result);
-                if(pd.length > 0){
+                if (pd.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < pd.length; i++){
+                    for (var i = 0; i < pd.length; i++) {
                         layout += montarPacienteDado(pd[i]) + '\n';
                     }
-                    SERVER.post('paciente_dado', layout).then(function(data){
-//                        $scope.resolverRetorno('pacienteDado', data, false).then(function(){
-                            return deferred.resolve();
-//                        });
-                    }, function(){
+                    SERVER.post('paciente_dado', layout).then(function(data) {
+                        return deferred.resolve();
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarPacienteEsus = function(){
+
+        $scope.enviarPacienteEsus = function() {
             var deferred = $q.defer();
-            
-            var montarPacienteEsus = function(pacienteEsus){
+
+            var montarPacienteEsus = function(pacienteEsus) {
                 var l = '';
                 l += $scope.addProp(pacienteEsus.codigoSistema);
                 l += $scope.addProp(pacienteEsus.id);
-                l += $scope.addProp(pacienteEsus.codigoSistemaUsuario);
+                if (isInvalid(pacienteEsus.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(pacienteEsus.codigoSistemaUsuario);
+                }
                 l += $scope.addProp(pacienteEsus.codigoSistemaPaciente);
                 l += $scope.addProp(pacienteEsus.dataCadastroFormatada);
                 l += $scope.addProp(pacienteEsus.situacaoConjugal);
@@ -855,53 +1023,53 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(pacienteEsus.proteseCadeiraRodas);
                 l += $scope.addProp(pacienteEsus.proteseOutros);
                 l += $scope.addProp(pacienteEsus.parentescoResponsavel);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
             //PacienteEsus
-            var sql = "SELECT pe.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " p.codigoSistema AS codigoSistemaPaciente,"+
-                    " strftime('%d-%m-%Y', pe.dataCadastro, 'unixepoch') AS dataCadastroFormatada,"+
-                    " cbo.codigoSistema AS codigoSistemaCbo"+
-                    " FROM pacienteEsus pe"+
-                    " LEFT JOIN paciente AS p ON p.id = pe.codigoPaciente "+
-                    " LEFT JOIN usuarios AS u ON u.id = pe.codigoUsuario "+
-                    " LEFT JOIN cbo AS cbo ON cbo.id = pe.codigoCbo "+
-                    " WHERE pe.versaoMobile > ? AND NOT EXISTS (SELECT * FROM erroPaciente AS ep WHERE ep.codigoPaciente = p.id)";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT pe.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " p.codigoSistema AS codigoSistemaPaciente," +
+                " strftime('%d-%m-%Y', pe.dataCadastro, 'unixepoch') AS dataCadastroFormatada," +
+                " cbo.codigoSistema AS codigoSistemaCbo" +
+                " FROM pacienteEsus pe" +
+                " LEFT JOIN paciente AS p ON p.id = pe.codigoPaciente " +
+                " LEFT JOIN usuarios AS u ON u.id = pe.codigoUsuario " +
+                " LEFT JOIN cbo AS cbo ON cbo.id = pe.codigoCbo " +
+                " WHERE NOT EXISTS (SELECT * FROM erroPaciente AS ep WHERE ep.codigoPaciente = p.id) AND pe.versaoMobile > ?";
+
+            DB.query(sql, [0]).then(function(result) {
                 var pacienteEsus = DB.fetchAll(result);
-                if(pacienteEsus.length > 0){
+                if (pacienteEsus.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < pacienteEsus.length; i++){
+                    for (var i = 0; i < pacienteEsus.length; i++) {
                         layout += montarPacienteEsus(pacienteEsus[i]) + '\n';
                     }
-                    SERVER.post('paciente_esus', layout).then(function(data){
-                        $scope.resolverRetorno('pacienteEsus', data, true).then(function(){
+                    SERVER.post('paciente_esus', layout).then(function(data) {
+                        $scope.resolverRetorno('pacienteEsus', data, true).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarPacientes = function(){
+
+        $scope.enviarPacientes = function() {
             var deferred = $q.defer();
-            
-            var montarPacientes = function(paciente){
+
+            var montarPacientes = function(paciente) {
                 var l = '';
                 l += $scope.addProp(paciente.codigoSistema);
                 l += $scope.addProp(paciente.id);
-                if(isInvalid(paciente.codigoSistemaUsuario)){
+                if (isInvalid(paciente.codigoSistemaUsuario)) {
                     l += $scope.addProp($scope.usuarioLogado.codigoSistema);
-                }else{
+                } else {
                     l += $scope.addProp(paciente.codigoSistemaUsuario);
                 }
                 l += $scope.addProp(paciente.excluido);
@@ -934,9 +1102,9 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(paciente.urgenciaTelefone);
                 l += $scope.addProp(paciente.urgenciaParentesco);
                 l += $scope.addProp(paciente.rendaFamiliar);
-                if(invalidToEmpty(paciente.resideDesdeFormatado).length > 10){
+                if (invalidToEmpty(paciente.resideDesdeFormatado).length > 10) {
                     l += $scope.addProp('');
-                }else{
+                } else {
                     l += $scope.addProp(paciente.resideDesdeFormatado);
                 }
                 l += $scope.addProp(paciente.situacao);
@@ -945,60 +1113,95 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(paciente.motivoExclusaoDomicilio);
                 l += $scope.addProp(paciente.motivoExclusao);
                 l += $scope.addProp(paciente.codigoEtniaIndigena);
-                
-                return l.substring(0, l.length-1);
+
+                l += $scope.addProp(paciente.numeroRG);
+                l += $scope.addProp(paciente.numeroCPF);
+                l += $scope.addProp(paciente.codigoOrgaoEmissor);
+                l += $scope.addProp(paciente.siglaUf);
+                l += $scope.addProp(paciente.folha);
+                l += $scope.addProp(paciente.livro);
+                l += $scope.addProp(paciente.termo);
+                l += $scope.addProp(paciente.dtEmissaoRG);
+                l += $scope.addProp(paciente.dtEmissaoCertidao);
+                l += $scope.addProp(paciente.tpCertidao);
+                l += $scope.addProp(paciente.nrCns);
+
+                console.log(l.substring(0, l.length - 1));
+
+                return l.substring(0, l.length - 1);
             };
             //Pacientes
-            var sql = "SELECT p.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " strftime('%d-%m-%Y', p.dataNascimento, 'unixepoch') AS dataNascimentoFormatada,"+
-                    " strftime('%d-%m-%Y', p.resideDesde, 'unixepoch') AS resideDesdeFormatado,"+
-                    " c.codigoSistema AS codigoCidadeNascimentoSistema,"+
-                    " pais.codigoSistema AS codigoPaisNascimentoSistema,"+
-                    " resp.codigoSistema AS codigoResponsavelSistema,"+
-                    " raca.codigoSistema AS codigoRacaSistema,"+
-                    " etniaIndigena.codigoSistema AS codigoEtniaIndigenaSistema,"+
-                    " dom.codigoSistema AS codigoDomicilioSistema"+
-                    " FROM paciente p"+
-                    " LEFT JOIN usuarios AS u ON u.id = p.codigoUsuario "+
-                    " LEFT JOIN cidade AS c ON c.id = p.codigoCidade "+
-                    " LEFT JOIN pais AS pais ON pais.id = p.codigoPais "+
-                    " LEFT JOIN raca AS raca ON raca.id = p.codigoRaca "+
-                    " LEFT JOIN etniaIndigena AS etniaIndigena ON etniaIndigena.id = p.codigoEtniaIndigena "+
-                    " LEFT JOIN domicilio AS dom ON dom.id = p.codigoDomicilio "+
-                    " LEFT JOIN paciente AS resp ON resp.id = p.codigoResponsavelFamiliar "+
-                    " WHERE p.versaoMobile > ? AND NOT EXISTS (SELECT * FROM erroPaciente AS ep WHERE ep.codigoPaciente = p.id)";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT p.*, " +
+                "u.codigoSistema AS codigoSistemaUsuario, " +
+                "strftime('%d-%m-%Y', p.dataNascimento, 'unixepoch') AS dataNascimentoFormatada, " +
+                "strftime('%d-%m-%Y', p.resideDesde, 'unixepoch') AS resideDesdeFormatado, " +
+                "c.codigoSistema AS codigoCidadeNascimentoSistema, " +
+                "pais.codigoSistema AS codigoPaisNascimentoSistema, " +
+                "resp.codigoSistema AS codigoResponsavelSistema, " +
+                "raca.codigoSistema AS codigoRacaSistema, " +
+                "etniaIndigena.codigoSistema AS codigoEtniaIndigenaSistema, " +
+                "dom.codigoSistema AS codigoDomicilioSistema, " +
+                "rg.numeroDocumento as numeroRG, " +
+                "cpf.numeroDocumento as numeroCPF, " +
+                "oe.codigoSistema as codigoOrgaoEmissor, " +
+                "rg.siglaUf as siglaUf, " +
+                "certidao.numeroFolha as folha, " +
+                "certidao.numeroLivro as livro, " +
+                "certidao.numeroTermo as termo, " +
+                "strftime('%d-%m-%Y', certidao.dataEmissao, 'unixepoch') as dtEmissaoCertidao, " +
+                "strftime('%d-%m-%Y', rg.dataEmissao, 'unixepoch') as dtEmissaoRG, " +
+                "certidao.tipoDocumento as tpCertidao, " +
+                "cns.numeroCartao as nrCns " +
+                "FROM paciente p " +
+                "LEFT JOIN usuarios AS u ON u.id = p.codigoUsuario " +
+                "LEFT JOIN cidade AS c ON c.id = p.codigoCidade " +
+                "LEFT JOIN pais AS pais ON pais.id = p.codigoPais " +
+                "LEFT JOIN raca AS raca ON raca.id = p.codigoRaca " +
+                "LEFT JOIN etniaIndigena AS etniaIndigena ON etniaIndigena.id = p.codigoEtniaIndigena " +
+                "LEFT JOIN domicilio AS dom ON dom.id = p.codigoDomicilio " +
+                "LEFT JOIN paciente AS resp ON resp.id = p.codigoResponsavelFamiliar 	" +
+                "LEFT JOIN documentos AS rg ON rg.codigoPaciente = p.id AND rg.tipoDocumento = 1 " +
+                "LEFT JOIN documentos AS cpf ON cpf.codigoPaciente = p.id AND cpf.tipoDocumento = 2 " +
+                "LEFT JOIN documentos AS certidao ON certidao.codigoPaciente = p.id AND certidao.tipoDocumento > 90 " +
+                "LEFT JOIN cns as cns on cns.codigoPaciente = p.id " +
+                "LEFT JOIN orgaoEmissor oe ON oe.id = rg.codigoOrgaoEmissor " +
+                "WHERE " +
+                " p.versaoMobile > ?";
+
+            DB.query(sql, [0]).then(function(result) {
                 var pacientes = DB.fetchAll(result);
-                if(pacientes.length > 0){
+                if (pacientes.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < pacientes.length; i++){
+                    for (var i = 0; i < pacientes.length; i++) {
                         layout += montarPacientes(pacientes[i]) + '\n';
                     }
-                    SERVER.post('paciente', layout).then(function(data){
-                        $scope.resolverRetorno('paciente', data, true).then(function(){
+                    SERVER.post('pacientev2', layout).then(function(data) {
+                        $scope.resolverRetorno('paciente', data, true).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarResponsaveis = function(){
+
+        $scope.enviarResponsaveis = function() {
             var deferred = $q.defer();
-            
-            var montarResponsaveis = function(responsavel){
+
+            var montarResponsaveis = function(responsavel) {
                 var l = '';
                 l += $scope.addProp(responsavel.codigoSistema);
                 l += $scope.addProp(responsavel.id);
-                l += $scope.addProp(responsavel.codigoSistemaUsuario);
+                if (isInvalid(responsavel.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(responsavel.codigoSistemaUsuario);
+                }
                 l += $scope.addProp(responsavel.excluido);
                 l += $scope.addProp(responsavel.nome);
                 l += $scope.addProp(responsavel.dataNascimentoFormatada);
@@ -1036,61 +1239,95 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(responsavel.motivoExclusaoDomicilio);
                 l += $scope.addProp(responsavel.motivoExclusao);
                 l += $scope.addProp(responsavel.codigoEtniaIndigena);
-                
-                return l.substring(0, l.length-1);
+
+                //Documentos
+
+                l += $scope.addProp(responsavel.numeroRG);
+                l += $scope.addProp(responsavel.numeroCPF);
+                l += $scope.addProp(responsavel.codigoOrgaoEmissor);
+                l += $scope.addProp(responsavel.siglaUf);
+                l += $scope.addProp(responsavel.folha);
+                l += $scope.addProp(responsavel.livro);
+                l += $scope.addProp(responsavel.termo);
+                l += $scope.addProp(responsavel.dtEmissaoRG);
+                l += $scope.addProp(responsavel.dtEmissaoCertidao);
+                l += $scope.addProp(responsavel.tpCertidao);
+                l += $scope.addProp(responsavel.nrCns);
+
+
+                return l.substring(0, l.length - 1);
             };
             //Responsaveis
-            var sql = "SELECT DISTINCT p.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " strftime('%d-%m-%Y', p.dataNascimento, 'unixepoch') AS dataNascimentoFormatada,"+
-                    " strftime('%d-%m-%Y', p.resideDesde, 'unixepoch') AS resideDesdeFormatado,"+
-                    " c.codigoSistema AS codigoCidadeNascimentoSistema,"+
-                    " pais.codigoSistema AS codigoPaisNascimentoSistema,"+
-                    " p.codigoSistema AS codigoResponsavelSistema,"+
-                    " raca.codigoSistema AS codigoRacaSistema,"+
-                    " etniaIndigena.codigoSistema AS codigoEtniaIndigenaSistema,"+
-                    " dom.codigoSistema AS codigoDomicilioSistema"+
-                    " FROM paciente p"+
-                    " LEFT JOIN usuarios AS u ON u.id = p.codigoUsuario "+
-                    " LEFT JOIN cidade AS c ON c.id = p.codigoCidade "+
-                    " LEFT JOIN pais AS pais ON pais.id = p.codigoPais "+
-                    " LEFT JOIN raca AS raca ON raca.id = p.codigoRaca "+
-                    " LEFT JOIN etniaIndigena AS etniaIndigena ON etniaIndigena.id = p.codigoEtniaIndigena "+
-                    " LEFT JOIN domicilio AS dom ON dom.id = p.codigoDomicilio "+
-                    " , paciente t2 "+
-                    " WHERE p.versaoMobile > ? "+
-                    " AND p.id = t2.codigoResponsavelFamiliar ORDER BY p.id";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT DISTINCT p.*, " +
+                "u.codigoSistema AS codigoSistemaUsuario, " +
+                "strftime('%d-%m-%Y', p.dataNascimento, 'unixepoch') AS dataNascimentoFormatada, " +
+                "strftime('%d-%m-%Y', p.resideDesde, 'unixepoch') AS resideDesdeFormatado, " +
+                "c.codigoSistema AS codigoCidadeNascimentoSistema, " +
+                "pais.codigoSistema AS codigoPaisNascimentoSistema, " +
+                "p.codigoSistema AS codigoResponsavelSistema, " +
+                "raca.codigoSistema AS codigoRacaSistema, " +
+                "etniaIndigena.codigoSistema AS codigoEtniaIndigenaSistema, " +
+                "dom.codigoSistema AS codigoDomicilioSistema, " +
+                "rg.numeroDocumento as numeroRG, " +
+                "cpf.numeroDocumento as numeroCPF, " +
+                "oe.codigoSistema as codigoOrgaoEmissor, " +
+                "rg.siglaUf as siglaUf, " +
+                "certidao.numeroFolha as folha, " +
+                "certidao.numeroLivro as livro, " +
+                "certidao.numeroTermo as termo, " +
+                "strftime('%d-%m-%Y', certidao.dataEmissao, 'unixepoch') as dtEmissaoCertidao, " +
+                "strftime('%d-%m-%Y', rg.dataEmissao, 'unixepoch') as dtEmissaoRG, " +
+                "certidao.tipoDocumento as tpCertidao, " +
+                "cns.numeroCartao as nrCns " +
+                "FROM paciente p, paciente t2 " +
+                "LEFT JOIN usuarios AS u ON u.id = p.codigoUsuario  " +
+                "LEFT JOIN cidade AS c ON c.id = p.codigoCidade  " +
+                "LEFT JOIN pais AS pais ON pais.id = p.codigoPais  " +
+                "LEFT JOIN raca AS raca ON raca.id = p.codigoRaca  " +
+                "LEFT JOIN etniaIndigena AS etniaIndigena ON etniaIndigena.id = p.codigoEtniaIndigena  " +
+                "LEFT JOIN domicilio AS dom ON dom.id = p.codigoDomicilio  " +
+                "LEFT JOIN documentos AS rg ON rg.codigoPaciente = p.id AND rg.tipoDocumento = 1 " +
+                "LEFT JOIN documentos AS cpf ON cpf.codigoPaciente = p.id AND cpf.tipoDocumento = 2  " +
+                "LEFT JOIN documentos AS certidao ON certidao.codigoPaciente = p.id AND certidao.tipoDocumento > 90 " +
+                "LEFT JOIN cns as cns on cns.codigoPaciente = p.id " +
+                "LEFT JOIN orgaoEmissor as oe ON oe.id = rg.codigoOrgaoEmissor " +
+                "WHERE " +
+                "p.id = t2.codigoResponsavelFamiliar AND p.versaoMobile > ? ORDER BY p.id";
+
+            DB.query(sql, [0]).then(function(result) {
                 var responsaveis = DB.fetchAll(result);
-                if(responsaveis.length > 0){
+                if (responsaveis.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < responsaveis.length; i++){
+                    for (var i = 0; i < responsaveis.length; i++) {
                         layout += montarResponsaveis(responsaveis[i]) + '\n';
                     }
-                    SERVER.post('paciente', layout).then(function(data){
-                        $scope.resolverRetorno('paciente', data, true).then(function(){
+                    SERVER.post('pacientev2', layout).then(function(data) {
+                        $scope.resolverRetorno('paciente', data, true).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarDomicilioEsus = function(){
+
+        $scope.enviarDomicilioEsus = function() {
             var deferred = $q.defer();
-            
-            var montarDomicilioEsus = function(domicilioEsus){
+
+            var montarDomicilioEsus = function(domicilioEsus) {
                 var l = '';
                 l += $scope.addProp(domicilioEsus.codigoSistema);
                 l += $scope.addProp(domicilioEsus.id);
-                l += $scope.addProp(domicilioEsus.codigoSistemaUsuario);
+                if (isInvalid(domicilioEsus.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(domicilioEsus.codigoSistemaUsuario);
+                }
                 l += $scope.addProp(domicilioEsus.codigoDomicilioSistema);
                 l += $scope.addProp(domicilioEsus.situacaoMoradia);
                 l += $scope.addProp(domicilioEsus.localizacao);
@@ -1115,97 +1352,104 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(domicilioEsus.horaGpsFormatada);
                 l += $scope.addProp(domicilioEsus.latitude);
                 l += $scope.addProp(domicilioEsus.longitude);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
             //Domicilio Esus
-            var sql = "SELECT de.*, "+
-                    " strftime('%d-%m-%Y', de.dataColetaGps, 'unixepoch') AS dataGpsFormatada,"+
-                    " strftime('%H:%M:%S', de.dataColetaGps, 'unixepoch', 'localtime') AS horaGpsFormatada,"+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " d.codigoSistema AS codigoDomicilioSistema"+
-                    " FROM domicilioEsus de"+
-                    " LEFT JOIN domicilio AS d ON d.id = de.codigoDomicilio "+
-                    " LEFT JOIN usuarios AS u ON u.id = de.codigoUsuario "+
-                    " WHERE de.versaoMobile > ? AND NOT EXISTS (SELECT * FROM erroDomicilio AS ed WHERE ed.codigoDomicilio = d.id)";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT de.*, " +
+                " strftime('%d-%m-%Y', de.dataColetaGps, 'unixepoch') AS dataGpsFormatada," +
+                " strftime('%H:%M:%S', de.dataColetaGps, 'unixepoch', 'localtime') AS horaGpsFormatada," +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " d.codigoSistema AS codigoDomicilioSistema" +
+                " FROM domicilioEsus de" +
+                " LEFT JOIN domicilio AS d ON d.id = de.codigoDomicilio " +
+                " LEFT JOIN usuarios AS u ON u.id = de.codigoUsuario " +
+                " WHERE NOT EXISTS (SELECT * FROM erroDomicilio AS ed WHERE ed.codigoDomicilio = d.id) AND de.versaoMobile > ?";
+
+            DB.query(sql, [0]).then(function(result) {
                 var domiciliosEsus = DB.fetchAll(result);
-                if(domiciliosEsus.length > 0){
+                if (domiciliosEsus.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < domiciliosEsus.length; i++){
+                    for (var i = 0; i < domiciliosEsus.length; i++) {
                         layout += montarDomicilioEsus(domiciliosEsus[i]) + '\n';
                     }
-                    SERVER.post('domicilio_esus', layout).then(function(data){
-                        $scope.resolverRetorno('domicilioEsus', data, true).then(function(){
+                    SERVER.post('domicilio_esus', layout).then(function(data) {
+                        $scope.resolverRetorno('domicilioEsus', data, true).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarDomicilio = function(){
+
+        $scope.enviarDomicilio = function() {
             var deferred = $q.defer();
-            
-            var montarDomicilio = function(domicilio){
+
+            var montarDomicilio = function(domicilio) {
                 var l = '';
                 l += $scope.addProp(domicilio.codigoSistema);
                 l += $scope.addProp(domicilio.id);
-                l += $scope.addProp(domicilio.codigoSistemaUsuario);
+                if (isInvalid(domicilio.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(domicilio.codigoSistemaUsuario);
+                }
                 l += $scope.addProp(domicilio.codigoEnderecoSistema);
                 l += $scope.addProp(domicilio.numeroFamilia);
                 l += $scope.addProp(domicilio.codigoMicroAreaSistema);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
             //Domicilio
-            var sql = "SELECT d.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " e.codigoSistema AS codigoEnderecoSistema,"+
-                    " ma.codigoSistema AS codigoMicroAreaSistema"+
-                    " FROM domicilio d"+
-                    " LEFT JOIN usuarios AS u ON u.id = d.codigoUsuario "+
-                    " LEFT JOIN endereco AS e ON e.id = d.codigoEndereco "+
-                    " LEFT JOIN microArea AS ma ON ma.id = d.codigoMicroArea "+
-                    " WHERE d.versaoMobile > ? ";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT d.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " e.codigoSistema AS codigoEnderecoSistema," +
+                " ma.codigoSistema AS codigoMicroAreaSistema" +
+                " FROM domicilio d" +
+                " LEFT JOIN usuarios AS u ON u.id = d.codigoUsuario " +
+                " LEFT JOIN endereco AS e ON e.id = d.codigoEndereco " +
+                " LEFT JOIN microArea AS ma ON ma.id = d.codigoMicroArea WHERE d.versaoMobile > ?";
+
+            DB.query(sql, [0]).then(function(result) {
                 var domicilios = DB.fetchAll(result);
-                if(domicilios.length > 0){
+                if (domicilios.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < domicilios.length; i++){
+                    for (var i = 0; i < domicilios.length; i++) {
                         layout += montarDomicilio(domicilios[i]) + '\n';
                     }
-                    SERVER.post('domicilio', layout).then(function(data){
-                        $scope.resolverRetorno('domicilio', data, true).then(function(){
+                    SERVER.post('domicilio', layout).then(function(data) {
+                        $scope.resolverRetorno('domicilio', data, true).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.enviarEndereco = function(){
+
+        $scope.enviarEndereco = function() {
             var deferred = $q.defer();
-            
-            var montarEndereco = function(endereco){
+
+            var montarEndereco = function(endereco) {
                 var l = '';
                 l += $scope.addProp(endereco.codigoSistema);
                 l += $scope.addProp(endereco.id);
-                l += $scope.addProp(endereco.codigoSistemaUsuario);
+                if (isInvalid(endereco.codigoSistemaUsuario)) {
+                    l += $scope.addProp($scope.usuarioLogado.codigoSistema);
+                } else {
+                    l += $scope.addProp(endereco.codigoSistemaUsuario);
+                }
                 l += $scope.addProp(endereco.codigoCidadeSistema);
                 l += $scope.addProp(endereco.cep);
                 l += $scope.addProp(endereco.bairro);
@@ -1216,386 +1460,498 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                 l += $scope.addProp(endereco.telefone);
                 l += $scope.addProp(endereco.telefoneReferencia);
                 l += $scope.addProp(endereco.pontoReferencia);
-                
-                return l.substring(0, l.length-1);
+
+                return l.substring(0, l.length - 1);
             };
             //Endereco
-            var sql = "SELECT e.*, "+
-                    " u.codigoSistema AS codigoSistemaUsuario,"+
-                    " c.codigoSistema AS codigoCidadeSistema,"+
-                    " tl.codigoSistema AS codigoTipoLogradouroSistema"+
-                    " FROM endereco e"+
-                    " LEFT JOIN usuarios AS u ON u.id = e.codigoUsuario "+
-                    " LEFT JOIN cidade AS c ON c.id = e.codigoCidade "+
-                    " LEFT JOIN tipoLogradouro AS tl ON tl.id = e.codigoTipoLogradouro "+
-                    " WHERE e.versaoMobile > ? ";
-            
-            DB.query(sql, [0]).then(function(result){
+            var sql = "SELECT e.*, " +
+                " u.codigoSistema AS codigoSistemaUsuario," +
+                " c.codigoSistema AS codigoCidadeSistema," +
+                " tl.codigoSistema AS codigoTipoLogradouroSistema" +
+                " FROM endereco e" +
+                " LEFT JOIN usuarios AS u ON u.id = e.codigoUsuario " +
+                " LEFT JOIN cidade AS c ON c.id = e.codigoCidade " +
+                " LEFT JOIN tipoLogradouro AS tl ON tl.id = e.codigoTipoLogradouro WHERE e.versaoMobile > ? ";
+
+            DB.query(sql, [0]).then(function(result) {
                 var enderecos = DB.fetchAll(result);
-                if(enderecos.length > 0){
+                if (enderecos.length > 0) {
                     var layout = '';
-                    for(var i = 0; i < enderecos.length; i++){
+                    for (var i = 0; i < enderecos.length; i++) {
                         layout += montarEndereco(enderecos[i]) + '\n';
                     }
-                    SERVER.post('endereco', layout).then(function(data){
-                        $scope.resolverRetorno('endereco', data, true).then(function(){
+                    SERVER.post('endereco', layout).then(function(data) {
+                        $scope.resolverRetorno('endereco', data, true).then(function() {
                             return deferred.resolve();
                         });
-                    }, function(){
+                    }, function() {
                         return deferred.reject();
                     });
-                }else{
+                } else {
                     return deferred.resolve();
                 }
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.iniciarSincronizacao = function(){
+
+        function ressincronizarRecriar() {
+            if (window.localStorage.getItem("sincronizacaoFinalizada")) {
+                $scope.enviarRecursos();
+                return;
+            }
+            $scope.carregarVersoes();
+        }
+
+        $scope.iniciarSincronizacao = function() {
             $scope.log.unshift('Iniciando processo de sincronização...');
-            
-            DB.deleteVersionTriggers().then(function(){
-                if(window.localStorage.getItem("sincronizacaoFinalizada")){
-                    $scope.enviarRecursos().then(function(){
-                        
-                        $scope.importarCbo();
-                    });
-                }else{
-                    //devido ao processo de importação ser assincrono, ao fim da importação de
-                    //uma tabela a proxima é chamada.
-                    $scope.importarCbo();
-                }
+            getParams()
+            DB.deleteVersionTriggers().then(function() {
+                ressincronizarRecriar();
             });
         };
-        
-        $scope.importarCbo = function(){
-            $scope.versaoExistente('cbo').then(function(versao){
-                if(! versao){
+
+        $scope.carregarVersoes = function() {
+            $resource($scope.url + G_versao + '/' + G_id + '/consultarVersoes/' + window.localStorage.codigoProfissional).get(function(result) {
+                $scope.bind.domicilio = result.domicilio; //Nao esta sendo usado
+                $scope.bind.domicilioEsus = result.domicilioEsus;
+                $scope.bind.paciente = result.paciente; //Nao esta sendo usado
+                $scope.bind.pacienteEsus = result.pacienteEsus;
+                $scope.bind.cns = result.cns;
+                $scope.bind.documentos = result.documentos;
+                $scope.bind.pacienteDado = result.pacienteDado;
+
+                $scope.importarCbo();
+            });
+        };
+
+        $scope.importarCbo = function() {
+            $scope.versaoExistente('cbo').then(function(versao) {
+                if (!versao) {
+                    versao = 0;
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=cbo'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseCbo(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=cbo' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseCbo(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarProfissional();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarProfissional = function(){
-            $scope.versaoExistente('profissional').then(function(versao){
-                if(! versao){
+        $scope.importarProfissional = function() {
+            $scope.versaoExistente('profissional').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=profissional'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseProfissional(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=profissional' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseProfissional(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarUsuarios();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarUsuarios = function(){
-            $scope.versaoExistente('usuarios').then(function(versao){
-                if(! versao){
+        $scope.importarUsuarios = function() {
+            $scope.versaoExistente('usuarios').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=usuarios'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseUsuarios(data, versao === 0 )
-                            .then(function(){
-                        
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=usuarios' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseUsuarios(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarOrgaoEmissor();
 
-                            },function(){$scope.problemaParse();});
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarOrgaoEmissor = function(){
-            $scope.versaoExistente('orgaoEmissor').then(function(versao){
-                if(! versao){
+        $scope.importarOrgaoEmissor = function() {
+            $scope.versaoExistente('orgaoEmissor').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=orgao_emissor'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseOrgaoEmissor(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=orgao_emissor' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseOrgaoEmissor(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarRaca();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarRaca = function(){
-            $scope.versaoExistente('raca').then(function(versao){
-                if(! versao){
+        $scope.importarRaca = function() {
+            $scope.versaoExistente('raca').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=raca'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseRaca(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=raca' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseRaca(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarEtnia();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarEtnia = function(){
-            $scope.versaoExistente('etniaIndigena').then(function(versao){
-                if(! versao){
+        $scope.importarEtnia = function() {
+            $scope.versaoExistente('etniaIndigena').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=etnia_indigena'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseEtniaIndigena(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=etnia_indigena' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseEtniaIndigena(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarTipoLogradouro();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarTipoLogradouro = function(){
-            $scope.versaoExistente('tipoLogradouro').then(function(versao){
-                if(! versao){
+        $scope.importarTipoLogradouro = function() {
+            $scope.versaoExistente('tipoLogradouro').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=tipo_logradouro'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseTipoLogradouro(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=tipo_logradouro' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseTipoLogradouro(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarPais();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarPais = function(){
-            $scope.versaoExistente('pais').then(function(versao){
-                if(! versao){
+        $scope.importarPais = function() {
+            $scope.versaoExistente('pais').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=pais'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parsePais(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=pais' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parsePais(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarEstado();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarEstado = function(){
-            $scope.versaoExistente('estado').then(function(versao){
-                if(! versao){
+        $scope.importarEstado = function() {
+            $scope.versaoExistente('estado').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=estado'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseEstado(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=estado' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseEstado(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarCidade();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarCidade = function(){
-            $scope.versaoExistente('cidade').then(function(versao){
-                if(! versao){
+        $scope.importarCidade = function() {
+            $scope.versaoExistente('cidade').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=cidade'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseCidade(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=cidade' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseCidade(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarEquipe();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarEquipe = function(){
-            $scope.versaoExistente('equipe').then(function(versao){
-                if(! versao){
+        $scope.importarEquipe = function() {
+            $scope.versaoExistente('equipe').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=equipe'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseEquipe(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=equipe' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseEquipe(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarMicroArea();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarMicroArea = function(){
-            $scope.versaoExistente('microArea').then(function(versao){
-                if(! versao){
+        $scope.importarMicroArea = function() {
+            $scope.versaoExistente('microArea').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=micro_area'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseMicroArea(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=micro_area' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseMicroArea(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarEquipeProfissional();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
 
-        $scope.importarEquipeProfissional = function(){
-            $scope.versaoExistente('equipeProfissional').then(function(versao){
-                if(! versao){
+        $scope.importarDominioPaciente = function() {
+            $scope.versaoExistente('dominioPaciente').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=equipe_profissional'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseEquipeProfissional(data, versao === 0 )
-                            .then(function(){
-                                
-                                $scope.importarEndereco();
-                        
-                            },function(){$scope.problemaParse();});
-                    })
-                    .error(function (data, status, headers, config) {
-                        $scope.problemaConexao();
-                    });
-            });
-        };
-
-        $scope.importarEndereco = function(){
-            $scope.versaoExistente('endereco').then(function(versao){
-                if(! versao){
-                    versao = 0;
-                }
-                $scope.baixarArquivo(versao, 'endereco').then(function(){
-                    $scope.log.unshift('Importando endereços');
+                var datamilis = new Date().getTime();
+                $scope.baixarArquivo(versao, 'dominio_paciente', $scope.bind.dominioPaciente).then(function() {
+                    $scope.log.unshift('Importando DominioPaciente(s)');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            fileEntry.file(function (file) {
+                    DB.session.transaction(function(tx) {
+                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                            fileEntry.file(function(file) {
+                                var lr = new LineReader({
+                                    chunkSize: 600
+                                });
+                                var totalCount = 0;
+                                var lineGroup = '';
+                                lr.on('line', function(line, next) {
+                                    lineGroup += line + '\n';
+                                    totalCount++;
+                                    if (totalCount % 1000 === 0) {
+                                        $scope.parseDominioPaciente(lineGroup, versao === 0).then(function() {
+                                            $scope.log.unshift('[' + totalCount + '] Importados');
+                                            lineGroup = '';
+                                            next();
+                                        }, function() {
+                                            lr.abort();
+                                        });
+                                    } else {
+                                        next();
+                                    }
+                                });
+                                lr.on('error', function(err) {
+                                    $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                                });
+                                lr.on('end', function() {
+                                    if (lineGroup !== '') {
+                                        $scope.parseDominioPaciente(lineGroup, versao === 0).then(function() {
+                                            $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
+                                            $scope.log.unshift('DominioPaciente(s) importado(s) com sucesso!');
+                                            $scope.log.unshift('Limpando codigos orfãos de DominioPaciente');
+                                            limparCodigoInternoDominio(null, function() {
+                                                $scope.log.unshift('Erro ao limpar codigos orfãos de DominioPaciente');
+                                            });
+                                            $scope.sucessoNaImportacao();
+                                        });
+                                    }else{
+                                        $scope.log.unshift('Limpando codigos orfãos de DominioPaciente');
+                                        limparCodigoInternoDominio(null, function() {
+                                            $scope.log.unshift('Erro ao limpar codigos orfãos de DominioPaciente');
+                                        });
+                                        $scope.sucessoNaImportacao();
+                                    } 
 
-                                var reader = new FileReader();
-                                reader.onloadend = function(e) {
-                                    $scope.parseEndereco(this.result, versao === 0).then(function(){
-                                        $scope.finalizarEndereco();
-                                    }, function(err){
-                                        $scope.log.unshift('ERRO AO IMPORTAR ENDERECOS' + JSON.stringify(err));
-                                    }); 
-                                };
-                                reader.readAsText(file);
+                                    $scope.$apply();
+                                });
+                                lr.read(file);
+
 
                             }, $scope.failFile);
                         }, $scope.failFile);
 
-                }, function(error){
+                    }, function(error) {
+                        $scope.problemaImportarArquivo(error);
+                    });
+                });
+            });
+        };
+
+        $scope.importarEquipeProfissional = function() {
+            $scope.versaoExistente('equipeProfissional').then(function(versao) {
+                if (!versao) {
+                    versao = 0;
+                }
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=equipe_profissional' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseEquipeProfissional(data, versao === 0)
+                            .then(function() {
+
+                                $scope.importarEndereco();
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
+                    })
+                    .error(function(data, status, headers, config) {
+                        $scope.problemaConexao();
+                    });
+            });
+        };
+
+        $scope.importarEndereco = function() {
+            $scope.versaoExistente('endereco').then(function(versao) {
+                if (!versao) {
+                    versao = 0;
+                }
+
+                if (window.localStorage.filtrarPor == 'M') {
+                    importarFiltroMicroArea('Endereco', versao);
+                    return;
+                }
+
+                $scope.baixarArquivo(versao, 'endereco').then(function() {
+                    $scope.log.unshift('Importando endereços');
+                    $scope.log.unshift('Importação por meio de arquivo');
+
+                    FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                        fileEntry.file(function(file) {
+                            var lr = new LineReader({
+                                chunkSize: 600
+                            });
+                            var totalCount = 0;
+                            var lineGroup = '';
+                            lr.on('line', function(line, next) {
+                                lineGroup += line + '\n';
+                                totalCount++;
+                                if (totalCount % 2000 === 0) {
+                                    $scope.parseEndereco(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('[' + totalCount + '] Importados');
+                                        lineGroup = '';
+                                        next();
+                                    }, function() {
+                                        lr.abort();
+                                    });
+                                } else {
+                                    next();
+                                }
+                            });
+                            lr.on('error', function(err) {
+                                $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                            });
+                            lr.on('end', function() {
+                                if (lineGroup !== '') {
+                                    $scope.parseEndereco(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
+                                        $scope.finalizarEndereco();
+                                    });
+                                } else {
+                                    $scope.finalizarEndereco();
+                                }
+                            });
+                            lr.read(file);
+
+                        }, $scope.failFile);
+                    }, $scope.failFile);
+
+                }, function(error) {
                     $scope.problemaImportarArquivo(error);
-                });                
+                });
             });
         };
 
@@ -1603,36 +1959,66 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             $scope.log.unshift('Endereços importados com sucesso');
             $scope.importarDomicilio();
         };
-        
-        $scope.importarDomicilio = function(){
-            $scope.versaoExistente('domicilio').then(function(versao){
-                if(! versao){
+
+        $scope.importarDomicilio = function() {
+            $scope.versaoExistente('domicilio').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $scope.baixarArquivo(versao, 'domicilio').then(function(){
+
+                if (window.localStorage.filtrarPor == 'M') {
+                    importarFiltroMicroArea('Domicilio', versao);
+                    return;
+                }
+
+                $scope.baixarArquivo(versao, 'domicilio').then(function() {
                     $scope.log.unshift('Importando domicílios');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            fileEntry.file(function (file) {
 
-                                var reader = new FileReader();
-                                reader.onloadend = function(e) {
-                                    $scope.parseDomicilio(this.result, versao === 0).then(function(){
+                    FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                        fileEntry.file(function(file) {
+                            var lr = new LineReader({
+                                chunkSize: 600
+                            });
+                            var totalCount = 0;
+                            var lineGroup = '';
+                            lr.on('line', function(line, next) {
+                                lineGroup += line + '\n';
+                                totalCount++;
+                                if (totalCount % 2000 === 0) {
+                                    $scope.parseDomicilio(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('[' + totalCount + '] Importados');
+                                        lineGroup = '';
+                                        next();
+                                    }, function() {
+                                        lr.abort();
+                                    });
+                                } else {
+                                    next();
+                                }
+                            });
+                            lr.on('error', function(err) {
+                                $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                            });
+                            lr.on('end', function() {
+                                if (lineGroup !== '') {
+                                    $scope.parseDomicilio(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
                                         $scope.finalizarDomicilio();
-                                    }, function(err){
-                                        $scope.log.unshift('ERRO AO IMPORTAR DOMICILIOS' + JSON.stringify(err));
-                                    }); 
-                                };
-                                reader.readAsText(file);
+                                    });
+                                } else {
+                                    $scope.finalizarDomicilio();
+                                    $scope.$apply();
+                                }
+                            });
+                            lr.read(file);
 
-                            }, $scope.failFile);
                         }, $scope.failFile);
+                    }, $scope.failFile);
 
-                }, function(error){
+                }, function(error) {
                     $scope.problemaImportarArquivo(error);
-                });                
+                });
             });
         };
 
@@ -1640,36 +2026,66 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             $scope.log.unshift('Domicílios importados com sucesso');
             $scope.importarDomicilioEsus();
         };
-        
-        $scope.importarDomicilioEsus = function(){
-            $scope.versaoExistente('domicilioEsus').then(function(versao){
-                if(! versao){
+
+        $scope.importarDomicilioEsus = function() {
+            $scope.versaoExistente('domicilioEsus').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $scope.baixarArquivo(versao, 'domicilio_esus').then(function(){
+
+                if (window.localStorage.filtrarPor == 'M') {
+                    importarFiltroMicroArea('Domicilio_Esus', versao);
+                    return;
+                }
+
+                $scope.baixarArquivo(versao, 'domicilio_esus', $scope.bind.domicilioEsus).then(function() {
                     $scope.log.unshift('Importando domicíliosEsus');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            fileEntry.file(function (file) {
-               
-                                var reader = new FileReader();
-                                reader.onloadend = function(e) {
-                                    $scope.parseDomicilioEsus(this.result, versao === 0).then(function(){
-                                        $scope.finalizarDomicilioEsus();
-                                    }, function(err){
-                                        $scope.log.unshift('ERRO AO IMPORTAR DOMICILIOS Esus ' + JSON.stringify(err));
-                                    }); 
-                                };
-                                reader.readAsText(file);
-                                
-                            }, $scope.failFile);
-                        }, $scope.failFile);
 
-                }, function(error){
+                    FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                        fileEntry.file(function(file) {
+                            var lr = new LineReader({
+                                chunkSize: 600
+                            });
+                            var totalCount = 0;
+                            var lineGroup = '';
+                            lr.on('line', function(line, next) {
+                                lineGroup += line + '\n';
+                                totalCount++;
+                                if (totalCount % 2000 === 0) {
+                                    $scope.parseDomicilioEsus(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('[' + totalCount + '] Importados');
+                                        lineGroup = '';
+                                        next();
+                                    }, function() {
+                                        lr.abort();
+                                    });
+                                } else {
+                                    next();
+                                }
+                            });
+                            lr.on('error', function(err) {
+                                $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                            });
+                            lr.on('end', function() {
+                                if (lineGroup !== '') {
+                                    $scope.parseDomicilioEsus(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
+                                        $scope.finalizarDomicilioEsus();
+                                    });
+                                } else {
+                                    $scope.finalizarDomicilioEsus();
+                                    $scope.$apply();
+                                }
+                            });
+                            lr.read(file);
+
+                        }, $scope.failFile);
+                    }, $scope.failFile);
+
+                }, function(error) {
                     $scope.problemaImportarArquivo(error);
-                });                
+                });
             });
         };
 
@@ -1677,259 +2093,393 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             $scope.log.unshift('DomicíliosEsus importados com sucesso');
             $scope.importarPaciente();
         };
-        
-        $scope.importarPaciente = function(){
-            $scope.versaoExistente('paciente').then(function(versao){
-                if(! versao){
+
+        var importarFiltroMicroArea = function(recurso, versao) {
+            var recursoMetodo = recurso.replace('_', '');
+            var localParse = $scope.$eval('parse' + recursoMetodo);
+            var localFinalizarRecurso = $scope.$eval('finalizar' + recursoMetodo);
+
+            $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=' + recurso.toLowerCase() + '&versao=' + versao + '&codigoProfissional=' + window.localStorage.codigoProfissional)
+                .success(function(data, status, headers, config) {
+                    var itens = [];
+                    linha = data.split('\n');
+                    $scope.log.unshift('Importando ' + (linha.length - 1) + ' ' + recurso.replace('_', ' ') + '(s)');
+                    localParse(data, versao === 0)
+                        .then(function() {
+                            localFinalizarRecurso();
+                        }, function() {
+                            $scope.problemaParse();
+                        });
+                })
+                .error(function(data, status, headers, config) {
+                    $scope.problemaConexao();
+                });
+        };
+
+        $scope.importarPaciente = function() {
+            $scope.versaoExistente('paciente').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $scope.baixarArquivo(versao, 'paciente').then(function(){
-                    $scope.log.unshift('Importando pacientes');
+
+                if (window.localStorage.filtrarPor == 'M') {
+                    importarFiltroMicroArea('Paciente', versao);
+                    return;
+                }
+
+                $scope.baixarArquivo(versao, 'paciente').then(function() {
+                    $scope.log.unshift('Importando paciente(s)');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            fileEntry.file(function (file) {
-                                
-                                var reader = new FileReader();
-                                reader.onloadend = function(e) {
-                                    $scope.parsePaciente(this.result, versao === 0).then(function(){
+
+                    FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                        fileEntry.file(function(file) {
+                            var lr = new LineReader({
+                                chunkSize: 600
+                            });
+                            var totalCount = 0;
+                            var lineGroup = '';
+                            lr.on('line', function(line, next) {
+                                lineGroup += line + '\n';
+                                totalCount++;
+                                if (totalCount % 1000 === 0) {
+                                    $scope.parsePaciente(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('[' + totalCount + '] Importados');
+                                        lineGroup = '';
+                                        next();
+                                    }, function() {
+                                        lr.abort();
+                                    });
+                                } else {
+                                    next();
+                                }
+                            });
+                            lr.on('error', function(err) {
+                                $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                            });
+                            lr.on('end', function() {
+                                if (lineGroup !== '') {
+                                    $scope.parsePaciente(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
                                         $scope.finalizarPaciente();
-                                    }, function(err){
-                                        $scope.log.unshift('ERRO AO IMPORTAR Paciente ' + JSON.stringify(err));
-                                    }); 
-                                };
-                                reader.readAsText(file);
+                                    });
+                                } else {
+                                    $scope.finalizarPaciente();
+                                    $scope.$apply();
+                                }
+                            });
+                            lr.read(file);
 
-                            }, $scope.failFile);
                         }, $scope.failFile);
+                    }, $scope.failFile);
 
-                }, function(error){
+                }, function(error) {
                     $scope.problemaImportarArquivo(error);
-                });                
+                });
             });
         };
 
         $scope.finalizarPaciente = function() {
-            $scope.atualizarResponsavelPaciente().then(function(){
-                $scope.log.unshift('Pacientes importados com sucesso');
-                $scope.importarCns();
-            });
-        };
-        
-        $scope.atualizarResponsavelPaciente = function(){
-            var deferred = $q.defer();
-            $scope.log.unshift('Atualizando responsáveis');
-            
-            var errorMessage = '';
-            DB.session.transaction(function (tx) {
-                var sql = "UPDATE paciente"+
-                " SET codigoResponsavelFamiliar = (SELECT p2.id FROM paciente AS p2 WHERE p2.codigoSistema = (SELECT pacienteResponsavelAux.codigoResponsavelSistema"+
-                    " FROM pacienteResponsavelAux"+
-                    " WHERE pacienteResponsavelAux.codigoPacienteSistema = paciente.codigoSistema ))"+
-                " WHERE EXISTS (SELECT * FROM pacienteResponsavelAux"+
-                    " WHERE pacienteResponsavelAux.codigoPacienteSistema = paciente.codigoSistema)";
-                tx.executeSql(sql, [], function (transaction, result) {
-                }, function (transaction, error) {
-                    if(errorMessage === ''){
-                        errorMessage = error.message;
-                    }
-                    return true;
-                });
-
-                tx.executeSql("DELETE FROM pacienteResponsavelAux", [], function (transaction, result) {
-                }, function (transaction, error) {
-                    if(errorMessage === ''){
-                        errorMessage = error.message;
-                    }
-                    return true;
-                });
-            }, function(e){
-                $scope.log.unshift('Erro ao atualizar responsáveis do paciente.');
-                $scope.log.unshift(errorMessage);
-                deferred.reject(e);
-            }, function(){
-                deferred.resolve();
-            });
-            
-            return deferred.promise;
+            //            $scope.atualizarResponsavelPaciente().then(function(){
+            $scope.log.unshift('Pacientes importados com sucesso');
+            $scope.importarCns();
         };
 
-        $scope.importarCns = function(){
-            $scope.versaoExistente('cns').then(function(versao){
-                if(! versao){
+
+        $scope.importarCns = function() {
+            $scope.versaoExistente('cns').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $scope.baixarArquivo(versao, 'cns').then(function(){
-                    $scope.log.unshift('Importando CNS');
+
+                if (window.localStorage.filtrarPor == 'M') {
+                    importarFiltroMicroArea('Cns', versao);
+                    return;
+                }
+
+                $scope.baixarArquivo(versao, 'cns', $scope.bind.cns).then(function() {
+                    $scope.log.unshift('Importando CNS(s)');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            fileEntry.file(function (file) {
 
-                                var reader = new FileReader();
-                                reader.onloadend = function(e) {
-                                    $scope.parseCns(this.result, versao === 0).then(function(){
+                    FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                        fileEntry.file(function(file) {
+                            var lr = new LineReader({
+                                chunkSize: 600
+                            });
+                            var totalCount = 0;
+                            var lineGroup = '';
+                            lr.on('line', function(line, next) {
+                                lineGroup += line + '\n';
+                                totalCount++;
+                                if (totalCount % 2000 === 0) {
+                                    $scope.parseCns(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('[' + totalCount + '] Importados');
+                                        lineGroup = '';
+                                        next();
+                                    }, function() {
+                                        lr.abort();
+                                    });
+                                } else {
+                                    next();
+                                }
+                            });
+                            lr.on('error', function(err) {
+                                $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                            });
+                            lr.on('end', function() {
+                                if (lineGroup !== '') {
+                                    $scope.parseCns(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
                                         $scope.finalizarCns();
-                                    }, function(err){
-                                        $scope.log.unshift('ERRO AO IMPORTAR CNS ' + JSON.stringify(err));
-                                    }); 
-                                };
-                                reader.readAsText(file);
-                                
-                            }, $scope.failFile);
+                                    });
+                                } else {
+                                    $scope.finalizarCns();
+                                    $scope.$apply();
+                                }
+                            });
+                            lr.read(file);
                         }, $scope.failFile);
+                    }, $scope.failFile);
 
-                }, function(error){
+                }, function(error) {
                     $scope.problemaImportarArquivo(error);
-                });                
+                });
             });
         };
-        
+
         $scope.finalizarCns = function() {
             $scope.importarDocumentos();
         };
-        
-        $scope.importarDocumentos = function(){
-            $scope.versaoExistente('documentos').then(function(versao){
-                if(! versao){
+
+        $scope.importarDocumentos = function() {
+            $scope.versaoExistente('documentos').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $scope.baixarArquivo(versao, 'documentos').then(function(){
-                    $scope.log.unshift('Importando Documentos');
+
+                if (window.localStorage.filtrarPor == 'M') {
+                    importarFiltroMicroArea('Documentos', versao);
+                    return;
+                }
+
+                $scope.baixarArquivo(versao, 'documentos', $scope.bind.documentos).then(function() {
+                    $scope.log.unshift('Importando Documento(s)');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            fileEntry.file(function (file) {
 
-                                var reader = new FileReader();
-                                reader.onloadend = function(e) {
-                                    $scope.parseDocumentos(this.result, versao === 0).then(function(){
+                    FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                        fileEntry.file(function(file) {
+                            var lr = new LineReader({
+                                chunkSize: 600
+                            });
+                            var totalCount = 0;
+                            var lineGroup = '';
+                            lr.on('line', function(line, next) {
+                                lineGroup += line + '\n';
+                                totalCount++;
+                                if (totalCount % 2000 === 0) {
+                                    $scope.parseDocumentos(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('[' + totalCount + '] Importados');
+                                        lineGroup = '';
+                                        next();
+                                    }, function() {
+                                        lr.abort();
+                                    });
+                                } else {
+                                    next();
+                                }
+                            });
+                            lr.on('error', function(err) {
+                                $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                            });
+                            lr.on('end', function() {
+                                if (lineGroup !== '') {
+                                    $scope.parseDocumentos(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
                                         $scope.finalizarDocumentos();
-                                    }, function(err){
-                                        $scope.log.unshift('ERRO AO IMPORTAR Documentos ' + JSON.stringify(err));
-                                    }); 
-                                };
-                                reader.readAsText(file);
-                                
-                            }, $scope.failFile);
-                        }, $scope.failFile);
+                                    });
+                                } else {
+                                    $scope.finalizarDocumentos();
+                                    $scope.$apply();
+                                }
+                            });
+                            lr.read(file);
 
-                }, function(error){
+                        }, $scope.failFile);
+                    }, $scope.failFile);
+
+                }, function(error) {
                     $scope.problemaImportarArquivo(error);
-                });                
+                });
             });
         };
-        
+
         $scope.finalizarDocumentos = function() {
             $scope.log.unshift('Documentos importados com sucesso');
             $scope.importarPacienteEsus();
         };
-        
-        $scope.importarPacienteEsus = function(){
-            $scope.versaoExistente('pacienteEsus').then(function(versao){
-                if(! versao){
+
+        $scope.importarPacienteEsus = function() {
+            $scope.versaoExistente('pacienteEsus').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $scope.baixarArquivo(versao, 'paciente_esus').then(function(){
-                    $scope.log.unshift('Importando Paciente Esus');
+
+                if (window.localStorage.filtrarPor == 'M') {
+                    importarFiltroMicroArea('Paciente_Esus', versao);
+                    return;
+                }
+
+                $scope.baixarArquivo(versao, 'paciente_esus', $scope.bind.pacienteEsus).then(function() {
+                    $scope.log.unshift('Importando Paciente Esus(s)');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            fileEntry.file(function (file) {
 
-                                var reader = new FileReader();
-                                reader.onloadend = function(e) {
-                                    $scope.parsePacienteEsus(this.result, versao === 0).then(function(){
+                    FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                        fileEntry.file(function(file) {
+                            var lr = new LineReader({
+                                chunkSize: 600
+                            });
+                            var totalCount = 0;
+                            var lineGroup = '';
+                            lr.on('line', function(line, next) {
+                                lineGroup += line + '\n';
+                                totalCount++;
+                                if (totalCount % 1000 === 0) {
+                                    $scope.parsePacienteEsus(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('[' + totalCount + '] Importados');
+                                        lineGroup = '';
+                                        next();
+                                    }, function() {
+                                        lr.abort();
+                                    });
+                                } else {
+                                    next();
+                                }
+                            });
+                            lr.on('error', function(err) {
+                                $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                            });
+                            lr.on('end', function() {
+                                if (lineGroup !== '') {
+                                    $scope.parsePacienteEsus(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
                                         $scope.finalizarPacienteEsus();
-                                    }, function(err){
-                                        $scope.log.unshift('ERRO AO IMPORTAR Paciente Esus ' + JSON.stringify(err));
-                                    }); 
-                                };
-                                reader.readAsText(file);
-                                
-                            }, $scope.failFile);
-                        }, $scope.failFile);
+                                    });
+                                } else {
+                                    $scope.finalizarPacienteEsus();
+                                    $scope.$apply();
+                                }
+                            });
+                            lr.read(file);
 
-                }, function(error){
+                        }, $scope.failFile);
+                    }, $scope.failFile);
+
+                }, function(error) {
                     $scope.problemaImportarArquivo(error);
-                });                
+                });
             });
         };
-        
+
         $scope.finalizarPacienteEsus = function() {
             $scope.importarPacienteDado();
         };
-        
-        $scope.importarPacienteDado = function(){
-            $scope.versaoExistente('pacienteDado').then(function(versao){
-                if(! versao){
+
+        $scope.importarPacienteDado = function() {
+            $scope.versaoExistente('pacienteDado').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $scope.baixarArquivo(versao, 'paciente_dado').then(function(){
-                    $scope.log.unshift('Importando Paciente Dado');
+
+                if (window.localStorage.filtrarPor == 'M') {
+                    importarFiltroMicroArea('Paciente_Dado', versao);
+                    return;
+                }
+
+
+                $scope.baixarArquivo(versao, 'paciente_dado', $scope.bind.pacienteDado).then(function() {
+                    $scope.log.unshift('Importando Paciente Dado(s)');
                     $scope.log.unshift('Importação por meio de arquivo');
-                    
-                        FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function (fileEntry) {
-                            fileEntry.file(function (file) {
 
-                                var reader = new FileReader();
-                                reader.onloadend = function(e) {
-                                    $scope.parsePacienteDado(this.result, versao === 0).then(function(){
+                    FS.fileSystem.root.getFile("celk/familias/tabelaTemp.txt", null, function(fileEntry) {
+                        fileEntry.file(function(file) {
+                            var lr = new LineReader({
+                                chunkSize: 600
+                            });
+                            var totalCount = 0;
+                            var lineGroup = '';
+                            lr.on('line', function(line, next) {
+                                lineGroup += line + '\n';
+                                totalCount++;
+                                if (totalCount % 2000 === 0) {
+                                    $scope.parsePacienteDado(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('[' + totalCount + '] Importados');
+                                        lineGroup = '';
+                                        next();
+                                    }, function() {
+                                        lr.abort();
+                                    });
+                                } else {
+                                    next();
+                                }
+                            });
+                            lr.on('error', function(err) {
+                                $scope.log.unshift('ERRO AO LER ARQUIVO: ' + err);
+                            });
+                            lr.on('end', function() {
+                                if (lineGroup !== '') {
+                                    $scope.parsePacienteDado(lineGroup, versao === 0).then(function() {
+                                        $scope.log.unshift('TOTAL DE REGISTROS: ' + totalCount);
                                         $scope.finalizarPacienteDado();
-                                    }, function(err){
-                                        $scope.log.unshift('ERRO AO IMPORTAR Paciente Dado' + JSON.stringify(err));
-                                    }); 
-                                };
-                                reader.readAsText(file);
+                                    });
+                                } else {
+                                    $scope.finalizarPacienteDado();
+                                    $scope.$apply();
+                                }
+                            });
+                            lr.read(file);
 
-                            }, $scope.failFile);
                         }, $scope.failFile);
+                    }, $scope.failFile);
 
-                }, function(error){
+                }, function(error) {
                     $scope.problemaImportarArquivo(error);
-                });                
+                });
             });
         };
-        
+
         $scope.finalizarPacienteDado = function() {
             $scope.importarNotificacaoPaciente();
         };
 
-        $scope.importarNotificacaoPaciente = function(){
-            $scope.versaoExistente('notificacaoPaciente').then(function(versao){
-                if(! versao){
+        $scope.importarNotificacaoPaciente = function() {
+            $scope.versaoExistente('notificacaoPaciente').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=notificacao_paciente'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseNotificacaoPaciente(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=notificacao_paciente' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseNotificacaoPaciente(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarNotificacaoAgendas();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
-        
+
         $scope.parseNotificacaoPaciente = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Notificações Paciente');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Notificação(ões) Paciente');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -1942,89 +2492,89 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
+                    if (novo) {
                         sql = "INSERT OR REPLACE INTO notificacaoPaciente " +
                             "(id, codigoSistema, versao, codigoPaciente, vacinaAtrasada) " +
-                            "VALUES (?, ?, ?,"+
-                            "(SELECT id FROM paciente WHERE codigoSistema = ?), ?)";
-                        binding.push(u.id);
+                            "VALUES ((SELECT id FROM paciente WHERE codigoSistema = ?), ?, ?," +
+                            "?, ?)";
+                        binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
                         binding.push(u.codigoPaciente);
                         binding.push(u.vacinaAtrasada);
-                        
-                    }else{
+
+                    } else {
                         sql = "INSERT OR REPLACE INTO notificacaoPaciente " +
                             "(id, codigoSistema, versao, codigoPaciente, vacinaAtrasada) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+","+
-                                "(SELECT id FROM paciente WHERE codigoSistema = ?),"+
-                                +u.vacinaAtrasada+" FROM notificacaoPaciente WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM notificacaoPaciente WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + "," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?)," +
+                            +u.vacinaAtrasada + " FROM notificacaoPaciente WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM notificacaoPaciente WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoPaciente);
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Notificações Paciente.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Notificações Paciente importadas com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
 
-        $scope.importarNotificacaoAgendas = function(){
-            $scope.versaoExistente('notificacaoAgendas').then(function(versao){
-                if(! versao){
+        $scope.importarNotificacaoAgendas = function() {
+            $scope.versaoExistente('notificacaoAgendas').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=notificacao_agenda'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseNotificacaoAgendas(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=notificacao_agenda' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseNotificacaoAgendas(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarMotivoNaoComparecimento();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
-        
+
         $scope.parseNotificacaoAgendas = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' NOTIFICACOES AGENDA');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Notificação(ões) Agenda');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2038,24 +2588,24 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "local": emptyToNull(registro[6]),
                     "tipoAgenda": emptyToNull(registro[7])
                 };
-                if(registro[5] !== ''){
+                if (registro[5] !== '') {
                     var date = registro[5].substring(0, 10).split('-');
                     var hora = registro[5].substring(10).split(':');
-                    itens[i].dataAgendamento = new Date(date[2], date[1] -1, date[0], hora[0], hora[1], hora[2], 0).getTime() / 1000;
+                    itens[i].dataAgendamento = new Date(date[2], date[1] - 1, date[0], hora[0], hora[1], hora[2], 0).getTime() / 1000;
                 }
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
+                    if (novo) {
                         sql = "INSERT OR REPLACE INTO notificacaoAgendas " +
                             "(id, codigoSistema, versao, codigoAgenda, codigoPaciente, status, tipoAgenda, local, dataAgendamento) " +
-                            "VALUES (?, ?, ?,?,"+
+                            "VALUES (?, ?, ?,?," +
                             "(SELECT id FROM paciente WHERE codigoSistema = ?), ?,?,?,?)";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
@@ -2066,74 +2616,74 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.tipoAgenda);
                         binding.push(u.local);
                         binding.push(u.dataAgendamento);
-                        
-                    }else{
+
+                    } else {
                         sql = "INSERT OR REPLACE INTO notificacaoAgendas " +
                             "(id, codigoSistema, versao, codigoAgenda, codigoPaciente, status, tipoAgenda, local, dataAgendamento) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+","+u.codigoAgenda+","+
-                                "(SELECT id FROM paciente WHERE codigoSistema = ?),"+
-                                +u.status+",'"+u.tipoAgenda+"','"+u.local+"', ? FROM notificacaoAgendas WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM notificacaoAgendas WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + "," + u.codigoAgenda + "," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?)," +
+                            +u.status + ",'" + u.tipoAgenda + "','" + u.local + "', ? FROM notificacaoAgendas WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM notificacaoAgendas WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoPaciente);
                         binding.push(u.dataAgendamento);
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar NOTIFICACOES AGENDA.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('NOTIFICACOES AGENDA importadas com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
 
-        $scope.importarMotivoNaoComparecimento = function(){
-            $scope.versaoExistente('motivoNaoComparecimento').then(function(versao){
-                if(! versao){
+        $scope.importarMotivoNaoComparecimento = function() {
+            $scope.versaoExistente('motivoNaoComparecimento').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=motivo_nao_comparecimento'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseMotivoNaoComparecimento(data, versao === 0 )
-                            .then(function(){
-                                
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=motivo_nao_comparecimento' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseMotivoNaoComparecimento(data, versao === 0)
+                            .then(function() {
+
                                 $scope.importarTipoVacina();
-                        
-                            },function(){$scope.problemaParse();});
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
-        
+
         $scope.parseMotivoNaoComparecimento = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Motivo Não Comparecimento');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Motivo(s) Não Comparecimento');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2146,13 +2696,13 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
+                    if (novo) {
                         sql = "INSERT OR REPLACE INTO motivoNaoComparecimento " +
                             "(id, codigoSistema, versao, outros, descricao) " +
                             "VALUES (?, ?, ?, ?, ?)";
@@ -2161,70 +2711,71 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.versao);
                         binding.push(u.outros);
                         binding.push(u.descricao);
-                        
-                    }else{
+
+                    } else {
                         sql = "INSERT OR REPLACE INTO motivoNaoComparecimento " +
                             "(id, codigoSistema, versao, outros, descricao) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+","+u.outros+",'"+u.descricao+"'"+
-                                " FROM motivoNaoComparecimento WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM motivoNaoComparecimento WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + "," + u.outros + ",'" + u.descricao + "'" +
+                            " FROM motivoNaoComparecimento WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM motivoNaoComparecimento WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Motivos de Não Comparecimento.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Motivos de Não Comparecimento importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
 
-        $scope.importarTipoVacina = function(){
-            $scope.versaoExistente('tipoVacina').then(function(versao){
-                if(! versao){
+        $scope.importarTipoVacina = function() {
+            $scope.versaoExistente('tipoVacina').then(function(versao) {
+                if (!versao) {
                     versao = 0;
                 }
-                
-                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                    + 'nomeRecurso=tipo_vacina'
-                    + '&versao='+versao)
-                    .success(function (data, status, headers, config) {
-                        $scope.parseTipoVacina(data, versao === 0 )
-                            .then(function(){
-                                $scope.importarPacientesRegistroVacinaAberto();
-                        
-                            },function(){$scope.problemaParse();});
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=tipo_vacina' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parseTipoVacina(data, versao === 0)
+                            .then(function() {
+
+                                $scope.importarPesquisa();
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
                     })
-                    .error(function (data, status, headers, config) {
+                    .error(function(data, status, headers, config) {
                         $scope.problemaConexao();
                     });
             });
         };
-        
+
         $scope.parseTipoVacina = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Tipo Vacina');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Tipo(s) Vacina');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2236,13 +2787,13 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
+                    if (novo) {
                         sql = "INSERT OR REPLACE INTO tipoVacina " +
                             "(id, codigoSistema, versao, descricao) " +
                             "VALUES (?, ?, ?, ?)";
@@ -2250,86 +2801,468 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
                         binding.push(u.descricao);
-                        
-                    }else{
+
+                    } else {
                         sql = "INSERT OR REPLACE INTO tipoVacina " +
                             "(id, codigoSistema, versao, descricao) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+",'"+u.descricao+"'"+
-                                " FROM tipoVacina WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM tipoVacina WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "'" +
+                            " FROM tipoVacina WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM tipoVacina WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Tipo de Vacina.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Tipos de Vacina importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
 
-        $scope.importarPacientesRegistroVacinaAberto = function(){
+        $scope.importarPesquisa = function() {
+            $scope.versaoExistente('pesquisa').then(function(versao) {
+                if (!versao) {
+                    versao = 0;
+                }
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=pesquisa' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parsePesquisa(data, versao === 0)
+                            .then(function() {
+
+                                $scope.importarPerguntaPesquisa();
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
+                    })
+                    .error(function(data, status, headers, config) {
+                        $scope.problemaConexao();
+                    });
+            });
+        };
+
+        $scope.parsePesquisa = function(data, novo) {
+            var deferred = $q.defer();
+
+            var itens = [];
+            var linha = data.split('\n');
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Pesquisa(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
+                var registro = linha[i].split('|');
+
+                itens[i] = {
+                    "id": null,
+                    "codigoSistema": parseInt(registro[0]),
+                    "versao": parseInt(registro[1]),
+                    "descricao": emptyToNull(registro[2]),
+                    "inicio": null,
+                    "fim": null,
+                    "status": parseInt(registro[5])
+                };
+                if (registro[3] !== '') {
+                    var date = registro[3].split('-');
+                    itens[i].inicio = new Date(date[2], date[1] - 1, date[0], null, null, null, 0).getTime() / 1000;
+                }
+                if (registro[4] !== '') {
+                    var date = registro[4].split('-');
+                    itens[i].fim = new Date(date[2], date[1] - 1, date[0], null, null, null, 0).getTime() / 1000;
+                }
+            }
+
+            var errorMessage = '';
+            DB.session.transaction(function(tx) {
+                for (var i = 0; i < itens.length; i++) {
+                    var u = itens[i];
+                    var count = 0;
+                    var binding = [];
+                    var sql;
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO pesquisa " +
+                            "(id, codigoSistema, versao, descricao, inicio, fim, status) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                        binding.push(u.id);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.versao);
+                        binding.push(u.descricao);
+                        binding.push(u.inicio);
+                        binding.push(u.fim);
+                        binding.push(u.status);
+
+                    } else {
+                        sql = "INSERT OR REPLACE INTO pesquisa " +
+                            "(id, codigoSistema, versao, descricao, inicio, fim, status) " +
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "'" + "," + u.inicio + "," + u.fim + "," + u.status +
+                            " FROM pesquisa WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM pesquisa WHERE codigoSistema = ?) LIMIT 1";
+                        binding.push(u.codigoSistema);
+                        binding.push(u.codigoSistema);
+                    }
+
+                    tx.executeSql(sql, binding, function(transaction, result) {
+                        count++;
+                        if (count % 100 === 0 && errorMessage === '') {
+                            $scope.log.unshift(count + ' de ' + itens.length + ' importados');
+                        }
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
+                            errorMessage = error.message;
+                        }
+                        return true;
+                    });
+                }
+            }, function(e) {
+                $scope.log.unshift('Erro ao importar Pesquisas.');
+                $scope.log.unshift(errorMessage);
+                deferred.reject(e);
+            }, function() {
+                $scope.log.unshift('Pesquisas importadas com sucesso!');
+                deferred.resolve();
+            });
+
+            return deferred.promise;
+        };
+
+        $scope.importarPerguntaPesquisa = function() {
+            $scope.versaoExistente('perguntaPesquisa').then(function(versao) {
+                if (!versao) {
+                    versao = 0;
+                }
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=pergunta_pesquisa' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parsePerguntaPesquisa(data, versao === 0)
+                            .then(function() {
+
+                                $scope.importarPerguntaResposta();
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
+                    })
+                    .error(function(data, status, headers, config) {
+                        $scope.problemaConexao();
+                    });
+            });
+        };
+
+        $scope.parsePerguntaPesquisa = function(data, novo) {
+            var deferred = $q.defer();
+
+            var itens = [];
+            var linha = data.split('\n');
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Pergunta(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
+                var registro = linha[i].split('|');
+
+                itens[i] = {
+                    "id": null,
+                    "codigoSistema": parseInt(registro[0]),
+                    "versao": parseInt(registro[1]),
+                    "descricao": emptyToNull(registro[2])
+                };
+            }
+
+            var errorMessage = '';
+            DB.session.transaction(function(tx) {
+                for (var i = 0; i < itens.length; i++) {
+                    var u = itens[i];
+                    var count = 0;
+                    var binding = [];
+                    var sql;
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO perguntaPesquisa " +
+                            "(id, codigoSistema, versao, descricao) " +
+                            "VALUES (?, ?, ?, ?)";
+                        binding.push(u.id);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.versao);
+                        binding.push(u.descricao);
+
+                    } else {
+                        sql = "INSERT OR REPLACE INTO perguntaPesquisa " +
+                            "(id, codigoSistema, versao, descricao) " +
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "'" +
+                            " FROM perguntaPesquisa WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM perguntaPesquisa WHERE codigoSistema = ?) LIMIT 1";
+                        binding.push(u.codigoSistema);
+                        binding.push(u.codigoSistema);
+                    }
+
+                    tx.executeSql(sql, binding, function(transaction, result) {
+                        count++;
+                        if (count % 100 === 0 && errorMessage === '') {
+                            $scope.log.unshift(count + ' de ' + itens.length + ' importados');
+                        }
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
+                            errorMessage = error.message;
+                        }
+                        return true;
+                    });
+                }
+            }, function(e) {
+                $scope.log.unshift('Erro ao importar Perguntas.');
+                $scope.log.unshift(errorMessage);
+                deferred.reject(e);
+            }, function() {
+                $scope.log.unshift('Perguntas importadas com sucesso!');
+                deferred.resolve();
+            });
+
+            return deferred.promise;
+        };
+
+        $scope.importarPerguntaResposta = function() {
+            $scope.versaoExistente('perguntaResposta').then(function(versao) {
+                if (!versao) {
+                    versao = 0;
+                }
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=pergunta_resposta' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parsePerguntaResposta(data, versao === 0)
+                            .then(function() {
+
+                                $scope.importarPesquisaPergunta();
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
+                    })
+                    .error(function(data, status, headers, config) {
+                        $scope.problemaConexao();
+                    });
+            });
+        };
+
+        $scope.parsePerguntaResposta = function(data, novo) {
+            var deferred = $q.defer();
+
+            var itens = [];
+            var linha = data.split('\n');
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Resposta(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
+                var registro = linha[i].split('|');
+
+                itens[i] = {
+                    "id": null,
+                    "codigoSistema": parseInt(registro[0]),
+                    "versao": parseInt(registro[1]),
+                    "descricao": emptyToNull(registro[2]),
+                    "codigoPergunta": parseInt(registro[3])
+                };
+            }
+
+            var errorMessage = '';
+            DB.session.transaction(function(tx) {
+                for (var i = 0; i < itens.length; i++) {
+                    var u = itens[i];
+                    var count = 0;
+                    var binding = [];
+                    var sql;
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO perguntaResposta " +
+                            "(id, codigoSistema, versao, descricao, codigoPergunta) " +
+                            "VALUES (?, ?, ?, ?, " +
+                            " (SELECT id FROM perguntaPesquisa WHERE codigoSistema = ?))";
+                        binding.push(u.id);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.versao);
+                        binding.push(u.descricao);
+                        binding.push(u.codigoPergunta);
+
+                    } else {
+                        sql = "INSERT OR REPLACE INTO perguntaResposta " +
+                            "(id, codigoSistema, versao, descricao, codigoPergunta) " +
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "', (SELECT id FROM perguntaPesquisa WHERE codigoSistema = ?)" +
+                            " FROM perguntaResposta WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM perguntaResposta WHERE codigoSistema = ?) LIMIT 1";
+                        binding.push(u.codigoPergunta);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.codigoSistema);
+                    }
+
+                    tx.executeSql(sql, binding, function(transaction, result) {
+                        count++;
+                        if (count % 100 === 0 && errorMessage === '') {
+                            $scope.log.unshift(count + ' de ' + itens.length + ' importados');
+                        }
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
+                            errorMessage = error.message;
+                        }
+                        return true;
+                    });
+                }
+            }, function(e) {
+                $scope.log.unshift('Erro ao importar Respostas.');
+                $scope.log.unshift(errorMessage);
+                deferred.reject(e);
+            }, function() {
+                $scope.log.unshift('Respostas importadas com sucesso!');
+                deferred.resolve();
+            });
+
+            return deferred.promise;
+        };
+
+        $scope.importarPesquisaPergunta = function() {
+            $scope.versaoExistente('pesquisaPergunta').then(function(versao) {
+                if (!versao) {
+                    versao = 0;
+                }
+
+                $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=pesquisa_pergunta' + '&versao=' + versao)
+                    .success(function(data, status, headers, config) {
+                        $scope.parsePesquisaPergunta(data, versao === 0)
+                            .then(function() {
+
+                                $scope.importarPacientesRegistroVacinaAberto();
+
+                            }, function() {
+                                $scope.problemaParse();
+                            });
+                    })
+                    .error(function(data, status, headers, config) {
+                        $scope.problemaConexao();
+                    });
+            });
+        };
+
+        $scope.parsePesquisaPergunta = function(data, novo) {
+            var deferred = $q.defer();
+
+            var itens = [];
+            var linha = data.split('\n');
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Pergunta(s) das pesquisa');
+            for (var i = 0; i < linha.length - 1; i++) {
+                var registro = linha[i].split('|');
+
+                itens[i] = {
+                    "id": null,
+                    "codigoSistema": parseInt(registro[0]),
+                    "versao": parseInt(registro[1]),
+                    "codigoPesquisa": parseInt(registro[2]),
+                    "codigoPergunta": parseInt(registro[3])
+                };
+            }
+
+            var errorMessage = '';
+            DB.session.transaction(function(tx) {
+                for (var i = 0; i < itens.length; i++) {
+                    var u = itens[i];
+                    var count = 0;
+                    var binding = [];
+                    var sql;
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO pesquisaPergunta " +
+                            "(id, codigoSistema, versao, codigoPesquisa, codigoPergunta) " +
+                            "VALUES (?, ?, ?, " +
+                            " (SELECT id FROM pesquisa WHERE codigoSistema = ?), " +
+                            " (SELECT id FROM perguntaPesquisa WHERE codigoSistema = ?))";
+                        binding.push(u.id);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.versao);
+                        binding.push(u.codigoPesquisa);
+                        binding.push(u.codigoPergunta);
+
+                    } else {
+                        sql = "INSERT OR REPLACE INTO pesquisaPergunta " +
+                            "(id, codigoSistema, versao, codigoPesquisa, codigoPergunta) " +
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ", (SELECT id FROM pesquisa WHERE codigoSistema = ?), (SELECT id FROM perguntaPesquisa WHERE codigoSistema = ?)" +
+                            " FROM pesquisaPergunta WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM pesquisaPergunta WHERE codigoSistema = ?) LIMIT 1";
+                        binding.push(u.codigoPesquisa);
+                        binding.push(u.codigoPergunta);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.codigoSistema);
+                    }
+
+                    tx.executeSql(sql, binding, function(transaction, result) {
+                        count++;
+                        if (count % 100 === 0 && errorMessage === '') {
+                            $scope.log.unshift(count + ' de ' + itens.length + ' importados');
+                        }
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
+                            errorMessage = error.message;
+                        }
+                        return true;
+                    });
+                }
+            }, function(e) {
+                $scope.log.unshift('Erro ao importar Perguntas das pesquisa.');
+                $scope.log.unshift(errorMessage);
+                deferred.reject(e);
+            }, function() {
+                $scope.log.unshift('Perguntas das pesquisa importadas com sucesso!');
+                deferred.resolve();
+            });
+
+            return deferred.promise;
+        };
+
+        $scope.importarPacientesRegistroVacinaAberto = function() {
             $http.get($scope.url + G_versao + '/' + G_id + '/registroVacinasAberto')
-                .success(function (data, status, headers, config) {
-                    if(data.length > 0){
+                .success(function(data, status, headers, config) {
+                    if (data.length > 0) {
                         var binding = [];
-                        var sql = "update paciente set registroVacina = 1 where codigoSistema in ("; 
-                        for(var i = 0; i < data.length; i++){
+                        var sql = "update paciente set registroVacina = 1 where codigoSistema in (";
+                        for (var i = 0; i < data.length; i++) {
                             binding.push(data[i]);
                             sql += "?,";
                         }
-                        sql = sql.substring(0, sql.length-1) + ")";
+                        sql = sql.substring(0, sql.length - 1) + ")";
                         DB.query(sql, binding);
 
                         var binding = [];
-                        var sql = "update paciente set registroVacina = 0 where registroVacina = 1 AND codigoSistema not in ("; 
-                        for(var i = 0; i < data.length; i++){
+                        var sql = "update paciente set registroVacina = 0 where registroVacina = 1 AND codigoSistema not in (";
+                        for (var i = 0; i < data.length; i++) {
                             binding.push(data[i]);
                             sql += "?,";
                         }
-                        sql = sql.substring(0, sql.length-1) + ")";
+                        sql = sql.substring(0, sql.length - 1) + ")";
                         DB.query(sql, binding);
                     }
                     $scope.importarRegistrosExcluidos();
                 })
-                .error(function (data, status, headers, config) {
+                .error(function(data, status, headers, config) {
                     $scope.problemaConexao();
                 });
         };
 
         $scope.importarRegistrosExcluidos = function() {
             var versao = window.localStorage.getItem("versaoExclusao");
-            if(! versao){
+            if (!versao) {
                 versao = 0;
             }
-                
-            $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?'
-                + 'nomeRecurso=EXCLUSOES'
-                + '&versao='+versao)
-                .success(function (data, status, headers, config) {
 
-                    $scope.parseExclusoes(data, versao === 0 );
-                    $scope.sucessoNaImportacao();
-                            
+            $http.post($scope.url + G_versao + '/' + G_id + '/consultarRecurso?' + 'nomeRecurso=EXCLUSOES' + '&versao=' + versao)
+                .success(function(data, status, headers, config) {
+
+                    $scope.parseExclusoes(data, versao === 0);
+                    $scope.importarDominioPaciente();
+
                 })
-                .error(function (data, status, headers, config) {
+                .error(function(data, status, headers, config) {
                     $scope.problemaConexao();
                 });
         };
@@ -2337,8 +3270,8 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
         $scope.parseExclusoes = function(data, novo) {
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Raças');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' exclusão(ões)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2348,7 +3281,7 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "idRegistro": emptyToNull(registro[3])
                 };
             }
-            
+
             for (var i = 0; i < itens.length; i++) {
                 var u = itens[i];
                 var binding = [];
@@ -2356,24 +3289,24 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     " WHERE codigoSistema = ? ";
                 binding.push(u.idRegistro);
 
-                DB.query(sql, binding, null, function(err){
-                    $scope.bind.erros.push('Erro ao excluir '+u.tipoRegistro);
+                DB.query(sql, binding, null, function(err) {
+                    $scope.bind.erros.push('Erro ao excluir ' + u.tipoRegistro);
                     $scope.bind.erros.push(err.message);
                 });
             }
-            
-            if(itens.length > 0){
-                window.localStorage.setItem("versaoExclusao", itens[itens.length -1].versao);
+
+            if (itens.length > 0) {
+                window.localStorage.setItem("versaoExclusao", itens[itens.length - 1].versao);
             }
         };
-        
+
         $scope.parseCbo = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' CBOs');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' CBO(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2385,61 +3318,61 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO cbo " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO cbo " +
                             "(id, codigoSistema, versao, descricao) " +
                             "VALUES (?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO cbo " +
                             "(id, codigoSistema, versao, descricao) " +
-                            "SELECT CASE WHEN codigoSistema = '"+u.codigoSistema+"' THEN id ELSE null END ,'" +
-                                u.codigoSistema+"',"+u.versao+",'"+u.descricao+"' FROM cbo WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM cbo WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = '" + u.codigoSistema + "' THEN id ELSE null END ,'" +
+                            u.codigoSistema + "'," + u.versao + ",'" + u.descricao + "' FROM cbo WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM cbo WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar CBOs.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('CBOs importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
 
-        $scope.parseProfissional = function (data, novo) {
+        $scope.parseProfissional = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Profissionais');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Profissional(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2451,62 +3384,62 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO profissional " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO profissional " +
                             "(id, codigoSistema, versao, nome) " +
                             "VALUES (?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO profissional " +
                             "(id, codigoSistema, versao, nome) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+",'"+u.nome+"' FROM profissional WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM profissional WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.nome + "' FROM profissional WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM profissional WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar profissionais.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Profissionais importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
 
-        $scope.parseUsuarios = function (data, novo) {
+        $scope.parseUsuarios = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' usuários');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Usuário(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2523,15 +3456,15 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
-                    if(novo){
-                        var sql = "INSERT INTO usuarios " +
-                                "(id, codigoSistema, versao, nome, login, senha, status, codigoProfissional, nivel) " +
-                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    if (novo) {
+                        var sql = "INSERT OR REPLACE INTO usuarios " +
+                            "(id, codigoSistema, versao, nome, login, senha, status, codigoProfissional, nivel) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                         if (!u.codigoProfissional) {
                             for (var key in u) {
                                 if (u.hasOwnProperty(key)) {
@@ -2539,66 +3472,66 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 }
                             }
                         } else {
-                            sql = "INSERT INTO usuarios " +
-                                    "(id, codigoSistema, versao, nome, login, senha, status, codigoProfissional, nivel) " +
-                                    " SELECT " + u.id + "," + u.codigoSistema + "," + u.versao + ",'" + u.nome + "','" + u.login + "','" + u.senha + "','" + u.status + "', id,'" + u.nivel + "'" +
-                                    " FROM profissional" +
-                                    " WHERE codigoSistema = ?";
+                            sql = "INSERT OR REPLACE INTO usuarios " +
+                                "(id, codigoSistema, versao, nome, login, senha, status, codigoProfissional, nivel) " +
+                                " SELECT " + u.id + "," + u.codigoSistema + "," + u.versao + ",'" + u.nome + "','" + u.login + "','" + u.senha + "','" + u.status + "', id,'" + u.nivel + "'" +
+                                " FROM profissional" +
+                                " WHERE codigoSistema = ?";
                             binding.push(u.codigoProfissional);
                         }
                     } else {
-                        if(!u.codigoProfissional){
+                        if (!u.codigoProfissional) {
                             sql = "INSERT OR REPLACE INTO usuarios " +
                                 "(id, codigoSistema, versao, nome, login, senha, status, codigoProfissional, nivel) " +
-                                "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                    u.codigoSistema+","+u.versao+",'"+u.nome+"','"+u.login+"','"+u.senha+"','"+u.status+"', null ,'"+u.nivel+"'"+
-                                    " FROM usuarios WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM usuarios WHERE codigoSistema = ?) LIMIT 1";
-                        }else{
+                                "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                                u.codigoSistema + "," + u.versao + ",'" + u.nome + "','" + u.login + "','" + u.senha + "','" + u.status + "', null ,'" + u.nivel + "'" +
+                                " FROM usuarios WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM usuarios WHERE codigoSistema = ?) LIMIT 1";
+                        } else {
                             sql = "INSERT OR REPLACE INTO usuarios " +
                                 "(id, codigoSistema, versao, nome, login, senha, status, codigoProfissional, nivel) " +
-                                "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                    u.codigoSistema+","+u.versao+",'"+u.nome+"','"+u.login+"','"+u.senha+"','"+u.status+"', (SELECT id FROM profissional WHERE codigoSistema = "+u.codigoProfissional+") ,'"+u.nivel+"'"+
-                                    " FROM usuarios WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM usuarios WHERE codigoSistema = ?) LIMIT 1";
+                                "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                                u.codigoSistema + "," + u.versao + ",'" + u.nome + "','" + u.login + "','" + u.senha + "','" + u.status + "', (SELECT id FROM profissional WHERE codigoSistema = " + u.codigoProfissional + ") ,'" + u.nivel + "'" +
+                                " FROM usuarios WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM usuarios WHERE codigoSistema = ?) LIMIT 1";
                         }
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
-                        if(result.rowsAffected !== 1){
+                    tx.executeSql(sql, binding, function(transaction, result) {
+                        if (result.rowsAffected !== 1) {
                             errorMessage = 'Código do profissional não encontrado';
                             transaction.rollback();
                         }
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar usuários.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Usuários importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
 
         $scope.parseOrgaoEmissor = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Orgãos de Emissão');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Orgão(s) de Emissão');
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2611,61 +3544,61 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO orgaoEmissor " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO orgaoEmissor " +
                             "(id, codigoSistema, versao, descricao, sigla) " +
                             "VALUES (?, ?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO orgaoEmissor " +
                             "(id, codigoSistema, versao, descricao, sigla) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+",'"+u.descricao+"','"+u.sigla+"' FROM orgaoEmissor WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM orgaoEmissor WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "','" + u.sigla + "' FROM orgaoEmissor WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM orgaoEmissor WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Orgãos de Emissão.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Orgãos de Emissão importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseRaca = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Raças');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Raça(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2677,61 +3610,61 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO raca " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO raca " +
                             "(id, codigoSistema, versao, descricao) " +
                             "VALUES (?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO raca " +
                             "(id, codigoSistema, versao, descricao) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+",'"+u.descricao+"' FROM raca WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM raca WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "' FROM raca WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM raca WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Raças.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Raças importadas com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseEtniaIndigena = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Etnias');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Etnia(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2743,61 +3676,61 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO etniaIndigena " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO etniaIndigena " +
                             "(id, codigoSistema, versao, descricao) " +
                             "VALUES (?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO etniaIndigena " +
                             "(id, codigoSistema, versao, descricao) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+",'"+u.descricao+"' FROM etniaIndigena WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM etniaIndigena WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "' FROM etniaIndigena WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM etniaIndigena WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Etnias Indigenas.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Etnias Indigenas importadas com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseTipoLogradouro = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Tipos de Logradouro');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Tipo(s) de Logradouro');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2808,71 +3741,68 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "sigla": emptyToNull(registro[3]),
                     "ordem": 999
                 };
-                if(registro[2] == 'RUA' 
-                        || registro[2] == 'TRAVESSA'
-                        || registro[2] == 'AVENIDA'
-                        || registro[2] == 'ESTRADA' ){
+                if (registro[2] == 'RUA' || registro[2] == 'TRAVESSA' || registro[2] == 'AVENIDA' || registro[2] == 'ESTRADA') {
                     itens[i].ordem = 0;
                 }
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO tipoLogradouro " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO tipoLogradouro " +
                             "(id, codigoSistema, versao, descricao, sigla, ordem) " +
                             "VALUES (?, ?, ?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO tipoLogradouro " +
                             "(id, codigoSistema, versao, descricao, sigla, ordem) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+",'"+u.descricao+"','"+u.sigla+"',"+u.ordem+" FROM tipoLogradouro WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM tipoLogradouro WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "','" + u.sigla + "'," + u.ordem + " FROM tipoLogradouro WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM tipoLogradouro WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Tipos de Logradouro.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Tipos de Logradouro importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parsePais = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Países');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' País(es)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2882,68 +3812,68 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "descricao": emptyToNull(registro[2]),
                     "ordem": 999
                 };
-                if(registro[0] == 10){
+                if (registro[0] == 10) {
                     itens[i].ordem = 0;
                 }
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO pais " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO pais " +
                             "(id, codigoSistema, versao, descricao, ordem) " +
                             "VALUES (?, ?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO pais " +
                             "(id, codigoSistema, versao, descricao, ordem) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+",'"+u.descricao+"',"+u.ordem+" FROM pais WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM pais WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "'," + u.ordem + " FROM pais WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM pais WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Países.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Países importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseEstado = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Estados');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Estado(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -2956,62 +3886,62 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO estado " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO estado " +
                             "(id, codigoSistema, versao, descricao, sigla) " +
                             "VALUES (?, ?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO estado " +
                             "(id, codigoSistema, versao, descricao, sigla) " +
-                            "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                u.codigoSistema+","+u.versao+",'"+u.descricao+"','"+u.sigla+"' FROM estado WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM estado WHERE codigoSistema = ?) LIMIT 1";
+                            "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                            u.codigoSistema + "," + u.versao + ",'" + u.descricao + "','" + u.sigla + "' FROM estado WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM estado WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Estado.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Estados importados com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseCidade = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Cidades');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Cidade(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3024,16 +3954,16 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        var sql = "INSERT INTO cidade " +
-                                "(id, codigoSistema, versao, descricao, codigoEstado) " +
-                                "VALUES (?, ?, ?, ?, ?)";
+                    if (novo) {
+                        var sql = "INSERT OR REPLACE INTO cidade " +
+                            "(id, codigoSistema, versao, descricao, codigoEstado) " +
+                            "VALUES (?, ?, ?, ?, ?)";
                         if (!u.codigoEstado) {
                             for (var key in u) {
                                 if (u.hasOwnProperty(key)) {
@@ -3041,63 +3971,63 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                                 }
                             }
                         } else {
-                            sql = "INSERT INTO cidade " +
-                                    "(id, codigoSistema, versao, descricao, codigoEstado) " +
-                                    " SELECT " + u.id + "," + u.codigoSistema + "," + u.versao + ",'" + u.descricao + "', id" +
-                                    " FROM estado" +
-                                    " WHERE codigoSistema = ?";
+                            sql = "INSERT OR REPLACE INTO cidade " +
+                                "(id, codigoSistema, versao, descricao, codigoEstado) " +
+                                " SELECT " + u.id + "," + u.codigoSistema + "," + u.versao + ",'" + u.descricao + "', id" +
+                                " FROM estado" +
+                                " WHERE codigoSistema = ?";
                             binding.push(u.codigoEstado);
                         }
                     } else {
-                        if(!u.codigoEstado){
+                        if (!u.codigoEstado) {
                             sql = "INSERT OR REPLACE INTO cidade " +
                                 "(id, codigoSistema, versao, descricao, codigoEstado) " +
-                                "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                    u.codigoSistema+","+u.versao+",'"+u.descricao+"', null"+
-                                    " FROM cidade WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM cidade WHERE codigoSistema = ?) LIMIT 1";
-                        }else{
+                                "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                                u.codigoSistema + "," + u.versao + ",'" + u.descricao + "', null" +
+                                " FROM cidade WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM cidade WHERE codigoSistema = ?) LIMIT 1";
+                        } else {
                             sql = "INSERT OR REPLACE INTO cidade " +
                                 "(id, codigoSistema, versao, descricao, codigoEstado) " +
-                                "SELECT CASE WHEN codigoSistema = "+u.codigoSistema+" THEN id ELSE null END ," +
-                                    u.codigoSistema+","+u.versao+",'"+u.descricao+"', (SELECT id FROM estado WHERE codigoSistema = "+u.codigoEstado+")"+
-                                    " FROM cidade WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM cidade WHERE codigoSistema = ?) LIMIT 1";
+                                "SELECT CASE WHEN codigoSistema = " + u.codigoSistema + " THEN id ELSE null END ," +
+                                u.codigoSistema + "," + u.versao + ",'" + u.descricao + "', (SELECT id FROM estado WHERE codigoSistema = " + u.codigoEstado + ")" +
+                                " FROM cidade WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM cidade WHERE codigoSistema = ?) LIMIT 1";
                         }
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 1000 === 0 && errorMessage === ''){
+                        if (count % 1000 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Cidade.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Cidades importadas com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseEquipe = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Equipes');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Equipe(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3110,26 +4040,26 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO equipe " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO equipe " +
                             "(id, codigoSistema, versao, codigoEmpresa, descricao) " +
                             "VALUES (?, ?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO equipe " +
                             "(id, codigoSistema, versao, codigoEmpresa, descricao) " +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                                "?,?,?,? FROM equipe WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM equipe WHERE codigoSistema = ?) LIMIT 1";
+                            "?,?,?,? FROM equipe WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM equipe WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -3139,38 +4069,39 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Equipe.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Equipes importadas com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseMicroArea = function(data, novo) {
+
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Micro Áreas');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Micro Área(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3178,31 +4109,31 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "codigoSistema": parseInt(registro[0]),
                     "versao": parseInt(registro[1]),
                     "microArea": parseInt(registro[2])
-//                    "equipeProfissional": parseInt(registro[3])//campo não utilizado atualmente
+                        //                    "equipeProfissional": parseInt(registro[3])//campo não utilizado atualmente
                 };
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO microArea " +
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO microArea " +
                             "(id, codigoSistema, versao, microArea) " +
                             "VALUES (?, ?, ?, ?)";
                         for (var key in u) {
                             if (u.hasOwnProperty(key)) {
                                 binding.push(u[key]);
                             }
-                        } 
-                    }else{
+                        }
+                    } else {
                         sql = "INSERT OR REPLACE INTO microArea " +
                             "(id, codigoSistema, versao, microArea) " +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                                "?,?,? FROM microArea WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM microArea WHERE codigoSistema = ?) LIMIT 1";
+                            "?,?,? FROM microArea WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM microArea WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -3211,38 +4142,141 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Micro Área.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Micro áreas importadas com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.parseEquipeProfissional = function(data, novo) {
+
+        $scope.parseDominioPaciente = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             linha = data.split('\n');
-            $scope.log.unshift('Importando ' + (linha.length-1) + ' Equipe Profissional');
-            for (var i = 0; i < linha.length-1; i++) {
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' DominioPaciente(s)');
+            for (var i = 0; i < linha.length - 1; i++) {
+                var registro = linha[i].split('|');
+                itens[i] = {
+                    "id": null,
+                    "codigoSistema": parseInt(registro[0]),
+                    "nome": emptyToNull(registro[1]),
+                    "dataNascimento": emptyToNull(registro[2]),
+                    "nomeMae": emptyToNull(registro[3]),
+                    "cns": emptyToNull(registro[4]),
+                    "cpf": emptyToNull(registro[5]),
+                    "descricaoFamilia": emptyToNull(registro[6]),
+                    "sexo": emptyToNull(registro[9]),
+                    "ativo": emptyToNull(registro[10]),
+                    "keyword": registro[1] + ' ' + registro[2] + ' ' + registro[3] + ' ' + registro[4] + ' ' + registro[5],
+                    "versao": parseInt(registro[8]),
+                    "codigoMicroArea": parseInt(registro[11]),
+                    "codigoArea": parseInt(registro[12])
+                };
+
+                if (registro[2] && registro[2] !== '') {
+                    var date = registro[2].split('-');
+                    itens[i].dataNascimento = new Date(date[2], date[1] - 1, date[0]).getTime() / 1000;
+                }
+            }
+
+            var errorMessage = '';
+
+            // binding.push();
+            DB.session.transaction(function(tx) {
+                for (var i = 0; i < itens.length; i++) {
+                    var u = itens[i];
+                    var count = 0;
+                    var binding = [];
+                    var sql;
+
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO dominioPaciente " +
+                            "(id, codigoSistema, nome, dataNascimento, nomeMae, cns, cpf, descricaoFamilia, sexo, ativo, keyword, versao, codigoMicroArea, codigoArea, codigoInterno) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, (SELECT id FROM paciente WHERE codigoSistema = ?))";
+                        for (var key in u) {
+                            if (u.hasOwnProperty(key)) {
+                                binding.push(u[key]);
+                            }
+                        }
+
+                        binding.push(u['codigoSistema']);
+
+                    } else {
+                        sql = "INSERT OR REPLACE INTO dominioPaciente " +
+                            "(id, codigoSistema, nome, dataNascimento, nomeMae, cns, cpf, descricaoFamilia, sexo, ativo, keyword, versao, codigoMicroArea, codigoArea, codigoInterno) " +
+                            "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
+                            "?,?,?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, (SELECT id FROM paciente WHERE codigoSistema = ?)" +
+                            "FROM dominioPaciente WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM dominioPaciente WHERE codigoSistema = ?) LIMIT 1";
+                        binding.push(u.codigoSistema);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.nome);
+                        binding.push(u.dataNascimento);
+                        binding.push(u.nomeMae);
+                        binding.push(u.cns);
+                        binding.push(u.cpf);
+                        binding.push(u.descricaoFamilia);
+                        binding.push(u.sexo);
+                        binding.push(u.ativo);
+                        binding.push(u.keyword);
+                        binding.push(u.versao);
+                        binding.push(u.codigoMicroArea);
+                        binding.push(u.codigoArea);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.codigoSistema);
+                        binding.push(u.codigoSistema);
+                    }
+
+                    tx.executeSql(sql, binding, function(transaction, result) {
+                        count++;
+                        if (count % 100 === 0 && errorMessage === '') {
+                            $scope.log.unshift(count + ' de ' + itens.length + ' importados');
+                            $scope.$apply();
+                        }
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
+                            errorMessage = error.message;
+                        }
+                        return true;
+                    });
+                }
+            }, function(e) {
+                $scope.log.unshift('Erro ao importar dominioPaciente.');
+                $scope.log.unshift(errorMessage);
+                deferred.reject(e);
+            }, function() {
+                $scope.log.unshift('DominioPaciente importados com sucesso!');
+                deferred.resolve();
+            });
+
+            return deferred.promise;
+        };
+
+        $scope.parseEquipeProfissional = function(data, novo) {
+            var deferred = $q.defer();
+
+            var itens = [];
+            linha = data.split('\n');
+            $scope.log.unshift('Importando ' + (linha.length - 1) + ' Equipe(s) Profissional');
+            for (var i = 0; i < linha.length - 1; i++) {
                 registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3257,20 +4291,20 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             }
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO equipeProfissional " +
-                                "(id, codigoSistema, versao, codigoProfissional, codigoMicroArea, codigoEquipe, status) " +
-                                " VALUES (?, ?, ?," +
-                                "(SELECT id FROM profissional WHERE codigoSistema = ?),"+
-                                "(SELECT id FROM microArea WHERE codigoSistema = ?),"+
-                                "(SELECT id FROM equipe WHERE codigoSistema = ?),"+
-                                " ?)";
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO equipeProfissional " +
+                            "(id, codigoSistema, versao, codigoProfissional, codigoMicroArea, codigoEquipe, status) " +
+                            " VALUES (?, ?, ?," +
+                            "(SELECT id FROM profissional WHERE codigoSistema = ?)," +
+                            "(SELECT id FROM microArea WHERE codigoSistema = ?)," +
+                            "(SELECT id FROM equipe WHERE codigoSistema = ?)," +
+                            " ?)";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -3278,16 +4312,16 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoMicroArea);
                         binding.push(u.codigoEquipe);
                         binding.push(u.status);
-                    }else{
+                    } else {
                         sql = "INSERT OR REPLACE INTO equipeProfissional " +
                             "(id, codigoSistema, versao, codigoProfissional, codigoMicroArea, codigoEquipe, status) " +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                                "?,?,"+
-                                "(SELECT id FROM profissional WHERE codigoSistema = ?),"+
-                                "(SELECT id FROM microArea WHERE codigoSistema = ?),"+
-                                "(SELECT id FROM equipe WHERE codigoSistema = ?),"+
-                                "?"+
-                                " FROM equipeProfissional WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM equipeProfissional WHERE codigoSistema = ?) LIMIT 1";
+                            "?,?," +
+                            "(SELECT id FROM profissional WHERE codigoSistema = ?)," +
+                            "(SELECT id FROM microArea WHERE codigoSistema = ?)," +
+                            "(SELECT id FROM equipe WHERE codigoSistema = ?)," +
+                            "?" +
+                            " FROM equipeProfissional WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM equipeProfissional WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -3299,37 +4333,37 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.log.unshift(count + ' de ' + itens.length + ' importados');
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Equipe Profissional.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 $scope.log.unshift('Equipe Profissional importado com sucesso!');
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseEndereco = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             var linha = data.split('\n');
-            for (var i = 0; i < linha.length -1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3351,20 +4385,20 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             linha = null;
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO endereco " +
-                                "(id, codigoSistema, versao, codigoCidade, cep, bairro, codigoTipoLogradouro, logradouro, complementoLogradouro, numeroLogradouro, telefone, telefoneReferencia, pontoReferencia) " +
-                                " VALUES (?, ?, ?," +
-                                "(SELECT id FROM cidade WHERE codigoSistema = ?),"+
-                                "?,?,"+
-                                "(SELECT id FROM tipoLogradouro WHERE codigoSistema = ?),"+
-                                "?,?,?,?,?,?)";
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO endereco " +
+                            "(id, codigoSistema, versao, codigoCidade, cep, bairro, codigoTipoLogradouro, logradouro, complementoLogradouro, numeroLogradouro, telefone, telefoneReferencia, pontoReferencia) " +
+                            " VALUES (?, ?, ?," +
+                            "(SELECT id FROM cidade WHERE codigoSistema = ?)," +
+                            "?,?," +
+                            "(SELECT id FROM tipoLogradouro WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?)";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -3378,16 +4412,16 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.telefone);
                         binding.push(u.telefoneReferencia);
                         binding.push(u.pontoReferencia);
-                    }else{
+                    } else {
                         sql = "INSERT OR REPLACE INTO endereco " +
                             "(id, codigoSistema, versao, codigoCidade, cep, bairro, codigoTipoLogradouro, logradouro, complementoLogradouro, numeroLogradouro, telefone, telefoneReferencia, pontoReferencia) " +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                                "?,?,"+
-                                "(SELECT id FROM cidade WHERE codigoSistema = ?),"+
-                                "?,?,"+
-                                "(SELECT id FROM tipoLogradouro WHERE codigoSistema = ?),"+
-                                "?,?,?,?,?,?"+
-                                " FROM endereco WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM endereco WHERE codigoSistema = ?) LIMIT 1";
+                            "?,?," +
+                            "(SELECT id FROM cidade WHERE codigoSistema = ?)," +
+                            "?,?," +
+                            "(SELECT id FROM tipoLogradouro WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?" +
+                            " FROM endereco WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM endereco WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -3405,35 +4439,35 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Endereços.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseDomicilio = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             var linha = data.split('\n');
-            for (var i = 0; i < linha.length -1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3442,79 +4476,83 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "versao": parseInt(registro[1]),
                     "codigoEndereco": parseInt(registro[2]),
                     "numeroFamilia": parseInt(registro[3]),
-                    "codigoMicroArea": parseInt(registro[4])
+                    "codigoMicroArea": parseInt(registro[4]),
+                    "visitaNoMes": registro[10]
                 };
             }
             linha = null;
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO domicilio " +
-                                "(id, codigoSistema, versao, codigoEndereco, numeroFamilia, codigoMicroArea) " +
-                                " VALUES (?, ?, ?," +
-                                "(SELECT id FROM endereco WHERE codigoSistema = ?),"+
-                                "?,"+
-                                "(SELECT id FROM microArea WHERE codigoSistema = ?))";
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO domicilio " +
+                            "(id, codigoSistema, versao, codigoEndereco, numeroFamilia, codigoMicroArea, visitaNoMes) " +
+                            " VALUES (?, ?, ?," +
+                            "(SELECT id FROM endereco WHERE codigoSistema = ?)," +
+                            "?," +
+                            "(SELECT id FROM microArea WHERE codigoSistema = ?), ?)";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
                         binding.push(u.codigoEndereco);
                         binding.push(u.numeroFamilia);
                         binding.push(u.codigoMicroArea);
-                    }else{
+                        binding.push(u.visitaNoMes);
+                    } else {
                         sql = "INSERT OR REPLACE INTO domicilio " +
-                            "(id, codigoSistema, versao, codigoEndereco, numeroFamilia, codigoMicroArea) " +
+                            "(id, codigoSistema, versao, codigoEndereco, numeroFamilia, codigoMicroArea, visitaNoMes) " +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                                "?,?,"+
-                                "(SELECT id FROM endereco WHERE codigoSistema = ?),"+
-                                "?,"+
-                                "(SELECT id FROM microArea WHERE codigoSistema = ?)"+
-                                " FROM domicilio WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM domicilio WHERE codigoSistema = ?) LIMIT 1";
+                            "?,?," +
+                            "(SELECT id FROM endereco WHERE codigoSistema = ?)," +
+                            "?,?" +
+                            "(SELECT id FROM microArea WHERE codigoSistema = ?)" +
+                            " FROM domicilio WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM domicilio WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
                         binding.push(u.codigoEndereco);
                         binding.push(u.numeroFamilia);
                         binding.push(u.codigoMicroArea);
+                        binding.push(u.visitaNoMes);
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Domicílios.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseDomicilioEsus = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             var linha = data.split('\n');
-            for (var i = 0; i < linha.length -1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3545,30 +4583,30 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "latitude": emptyToNull(registro[24]),
                     "longitude": emptyToNull(registro[25])
                 };
-                
-                if(registro[23] !== ''){
+
+                if (registro[23] !== '') {
                     var date = registro[22].split('-');
                     var hora = registro[23].split(':');
-                    itens[i].dataColetaGps = new Date(date[2], date[1] -1, date[0], hora[0], hora[1], hora[2], 0).getTime() / 1000;
+                    itens[i].dataColetaGps = new Date(date[2], date[1] - 1, date[0], hora[0], hora[1], hora[2], 0).getTime() / 1000;
                 }
             }
             linha = null;
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO domicilioEsus " +
-                                "(id, codigoSistema, versao, codigoDomicilio, situacaoMoradia, localizacao, tipoDomicilio, numeroMoradores, numeroComodos,"+
-                                "condicaoUsoTerra, tipoAcessoDomicilio, materialDominante, possuiEnergiaEletrica, abastecimentoAgua, tratamentoAgua, esgotamento, destinoLixo,"+
-                                "gato, cachorro, passaro, criacao, outros, quantos, dataColetaGps, latitude, longitude)" +
-                                " VALUES (?, ?, ?," +
-                                "(SELECT id FROM domicilio WHERE codigoSistema = ?),"+
-                                "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO domicilioEsus " +
+                            "(id, codigoSistema, versao, codigoDomicilio, situacaoMoradia, localizacao, tipoDomicilio, numeroMoradores, numeroComodos," +
+                            "condicaoUsoTerra, tipoAcessoDomicilio, materialDominante, possuiEnergiaEletrica, abastecimentoAgua, tratamentoAgua, esgotamento, destinoLixo," +
+                            "gato, cachorro, passaro, criacao, outros, quantos, dataColetaGps, latitude, longitude)" +
+                            " VALUES (?, ?, ?," +
+                            "(SELECT id FROM domicilio WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -3595,16 +4633,16 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.dataColetaGps);
                         binding.push(u.latitude);
                         binding.push(u.longitude);
-                    }else{
+                    } else {
                         sql = "INSERT OR REPLACE INTO domicilioEsus " +
-                                "(id, codigoSistema, versao, codigoDomicilio, situacaoMoradia, localizacao, tipoDomicilio, numeroMoradores, numeroComodos,"+
-                                "condicaoUsoTerra, tipoAcessoDomicilio, materialDominante, possuiEnergiaEletrica, abastecimentoAgua, tratamentoAgua, esgotamento, destinoLixo,"+
-                                "gato, cachorro, passaro, criacao, outros, quantos, dataColetaGps, latitude, longitude)" +
+                            "(id, codigoSistema, versao, codigoDomicilio, situacaoMoradia, localizacao, tipoDomicilio, numeroMoradores, numeroComodos," +
+                            "condicaoUsoTerra, tipoAcessoDomicilio, materialDominante, possuiEnergiaEletrica, abastecimentoAgua, tratamentoAgua, esgotamento, destinoLixo," +
+                            "gato, cachorro, passaro, criacao, outros, quantos, dataColetaGps, latitude, longitude)" +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                                "?,?,"+
-                                "(SELECT id FROM domicilio WHERE codigoSistema = ?),"+
-                                "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?"+
-                                " FROM domicilioEsus WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM domicilioEsus WHERE codigoSistema = ?) LIMIT 1";
+                            "?,?," +
+                            "(SELECT id FROM domicilio WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?" +
+                            " FROM domicilioEsus WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM domicilioEsus WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -3635,35 +4673,35 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar DomicíliosEsus.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parsePaciente = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             var linha = data.split('\n');
-            for (var i = 0; i < linha.length -1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3706,154 +4744,165 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "prontuario": emptyToNull(registro[35]),
                     "motivoExclusao": emptyToNull(registro[36]),
                     "codigoEtniaIndigena": parseInt(registro[37]),
-                    "keyword": registro[3] + ' ' + registro[6] + ' ' + registro[8] 
+                    "keyword": registro[3] + ' ' + registro[6] + ' ' + registro[8]
                 };
-                
-                if(registro[4] !== ''){
+
+                if (registro[4] !== '') {
                     var date = registro[4].split('-');
-                    itens[i].dataNascimento = new Date(date[2], date[1] -1, date[0]).getTime() / 1000;
+                    itens[i].dataNascimento = new Date(date[2], date[1] - 1, date[0]).getTime() / 1000;
                 }
-                if(registro[32] !== ''){
+                if (registro[32] !== '') {
                     var date = registro[32].split('-');
-                    itens[i].resideDesde = new Date(date[2], date[1] -1, date[0]).getTime() / 1000;
+                    itens[i].resideDesde = new Date(date[2], date[1] - 1, date[0]).getTime() / 1000;
                 }
             }
             linha = null;
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
+                    if (novo) {
                         sql = "INSERT OR REPLACE INTO paciente " +
-                                "(id, codigoSistema, versao, excluido, nome, dataNascimento, sexo, nomeMae, codigoCidade,"+
-                                "cpf, rg, telefone, celular, codigoRaca, codigoPais, email, apelido,"+
-                                "flagResponsavelFamiliar, nacionalidade, codigoDomicilio, telefone2,"+
-                                "telefone3, telefone4, religiao, localTrabalho, telefoneTrabalho, responsavel, parentescoResponsavel,"+
-                                "urgenciaNome, urgenciaTelefone, urgenciaParentesco, rendaFamiliar, resideDesde, situacao, nis, prontuario, motivoExclusao, codigoEtniaIndigena, keyword)" +
-                                " VALUES (?, ?, ?," +
-                                "?,?,?,?,?,"+
-                                "(SELECT id FROM cidade WHERE codigoSistema = ?),"+
-                                "?,?,?,?,"+
-                                "(SELECT id FROM raca WHERE codigoSistema = ?),"+
-                                "(SELECT id FROM pais WHERE codigoSistema = ?),"+
-                                "?,?,?,?,"+
-                                "(SELECT id FROM domicilio WHERE codigoSistema = ?),"+
-                                "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,"+
-                                "(SELECT id FROM etniaIndigena WHERE codigoSistema = ?),"+
-                                "?)";
+                            "(id, codigoSistema, versao, excluido, nome, dataNascimento, sexo, nomeMae, codigoCidade," +
+                            "cpf, rg, telefone, celular, codigoRaca, codigoPais, email, apelido," +
+                            "flagResponsavelFamiliar, nacionalidade, codigoDomicilio, telefone2," +
+                            "telefone3, telefone4, religiao, localTrabalho, telefoneTrabalho, responsavel, parentescoResponsavel," +
+                            "urgenciaNome, urgenciaTelefone, urgenciaParentesco, rendaFamiliar, resideDesde, situacao, nis, prontuario, motivoExclusao, codigoEtniaIndigena, keyword, codigoResponsavelFamiliar)" +
+                            " VALUES (?, ?, ?," +
+                            "?,?,?,?,?," +
+                            "(SELECT id FROM cidade WHERE codigoSistema = ?)," +
+                            "?,?,?,?," +
+                            "(SELECT id FROM raca WHERE codigoSistema = ?)," +
+                            "(SELECT id FROM pais WHERE codigoSistema = ?)," +
+                            "?,?,?,?," +
+                            "(SELECT id FROM domicilio WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?," +
+                            "(SELECT id FROM etniaIndigena WHERE codigoSistema = ?)," +
+                            "?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?))";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
                         binding.extend($scope.setPropertiesPaciente(u));
-                        
-                        tx.executeSql(sql, binding, function (transaction, result) {
-                        count++;
-                        if(count % 100 === 0 && errorMessage === ''){
-                            $scope.$apply();
-                        }
-                        }, function (transaction, error) {
-                            if(errorMessage === ''){
+
+                        tx.executeSql(sql, binding, function(transaction, result) {
+                            count++;
+                            if (count % 100 === 0 && errorMessage === '') {
+                                $scope.$apply();
+                            }
+                        }, function(transaction, error) {
+                            if (errorMessage === '') {
                                 errorMessage = error.message;
                             }
                             return true;
                         });
-                        
-                    }else{
-                        
+
+                    } else {
+
                         $scope.updatePaciente(tx, u);
-                        
+
                     }
-                    
-                    if(! isNaN(u.codigoResponsavelFamiliar)){
+
+                    if (!isNaN(u.codigoResponsavelFamiliar)) {
                         sql = "INSERT OR REPLACE INTO pacienteResponsavelAux " +
-                                "(codigoPacienteSistema, codigoResponsavelSistema)" +
+                            "(codigoPacienteSistema, codigoResponsavelSistema)" +
                             "VALUES (?,?)";
                         binding = [];
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoResponsavelFamiliar);
 
-                        tx.executeSql(sql, binding, function (transaction, result) {
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
-                            errorMessage = error.message;
-                        }
-                        return true;
-                    });
+                        tx.executeSql(sql, binding, function(transaction, result) {}, function(transaction, error) {
+                            if (errorMessage === '') {
+                                errorMessage = error.message;
+                            }
+                            return true;
+                        });
+                    } else {
+                        sql = "DELETE FROM pacienteResponsavelAux " +
+                            "WHERE codigoPacienteSistema = ?";
+                        binding = [];
+                        binding.push(u.codigoSistema);
+
+                        tx.executeSql(sql, binding, function(transaction, result) {}, function(transaction, error) {
+                            if (errorMessage === '') {
+                                errorMessage = error.message;
+                            }
+                            return true;
+                        });
+                    }
                 }
-                }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Pacientes.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
-        $scope.updatePaciente = function(tx, pac){
+
+        $scope.updatePaciente = function(tx, pac) {
             var binding = [];
             var sql = "UPDATE paciente  SET " +
-                    " versao = ?, excluido = ?, nome = ?, dataNascimento = ?, sexo = ?, nomeMae = ?, " +
-                    " codigoCidade = (SELECT id FROM cidade WHERE codigoSistema = ?),"+
-                    " cpf = ?, rg = ?, telefone = ?, celular = ?, "+
-                    " codigoRaca = (SELECT id FROM raca WHERE codigoSistema = ?),"+
-                    " codigoPais = (SELECT id FROM pais WHERE codigoSistema = ?),"+
-                    " email = ?, apelido = ?, flagResponsavelFamiliar = ?, nacionalidade = ?, "+
-                    " codigoDomicilio = (SELECT id FROM domicilio WHERE codigoSistema = ?), "+
-                    " telefone2 = ?,"+
-                    " telefone3 = ?, telefone4 = ?, religiao = ?, localTrabalho = ?, telefoneTrabalho = ?, responsavel = ?, parentescoResponsavel = ?, "+
-                    " urgenciaNome = ?, urgenciaTelefone = ?, urgenciaParentesco = ?, rendaFamiliar = ?, resideDesde = ?, situacao = ?, nis = ?, prontuario = ?, motivoExclusao = ?,"+
-                    " codigoEtniaIndigena = (SELECT id FROM etniaIndigena WHERE codigoSistema = ?),"+
-                    " keyword = ?, versaoMobile = 0 " +
-                    " WHERE codigoSistema = ?;";
+                " versao = ?, excluido = ?, nome = ?, dataNascimento = ?, sexo = ?, nomeMae = ?, " +
+                " codigoCidade = (SELECT id FROM cidade WHERE codigoSistema = ?)," +
+                " cpf = ?, rg = ?, telefone = ?, celular = ?, " +
+                " codigoRaca = (SELECT id FROM raca WHERE codigoSistema = ?)," +
+                " codigoPais = (SELECT id FROM pais WHERE codigoSistema = ?)," +
+                " email = ?, apelido = ?, flagResponsavelFamiliar = ?, nacionalidade = ?, " +
+                " codigoDomicilio = (SELECT id FROM domicilio WHERE codigoSistema = ?), " +
+                " telefone2 = ?," +
+                " telefone3 = ?, telefone4 = ?, religiao = ?, localTrabalho = ?, telefoneTrabalho = ?, responsavel = ?, parentescoResponsavel = ?, " +
+                " urgenciaNome = ?, urgenciaTelefone = ?, urgenciaParentesco = ?, rendaFamiliar = ?, resideDesde = ?, situacao = ?, nis = ?, prontuario = ?, motivoExclusao = ?," +
+                " codigoEtniaIndigena = (SELECT id FROM etniaIndigena WHERE codigoSistema = ?)," +
+                " keyword = ?, codigoResponsavelFamiliar = (SELECT id FROM paciente WHERE codigoSistema = ?) " +
+                " WHERE codigoSistema = ?;";
 
             binding.extend($scope.setPropertiesPaciente(pac));
             binding.push(pac.codigoSistema);
 
-            tx.executeSql(sql, binding, function (transaction, result) {
-                if(result.rowsAffected <= 0){
-                    var sqlInsert = "INSERT INTO paciente " +
-                            "(codigoSistema, versao, excluido, nome, dataNascimento, sexo, nomeMae, codigoCidade,"+
-                            "cpf, rg, telefone, celular, codigoRaca, codigoPais, email, apelido,"+
-                            "flagResponsavelFamiliar, nacionalidade, codigoDomicilio, telefone2,"+
-                            "telefone3, telefone4, religiao, localTrabalho, telefoneTrabalho, responsavel, parentescoResponsavel,"+
-                            "urgenciaNome, urgenciaTelefone, urgenciaParentesco, rendaFamiliar, resideDesde, situacao, nis, prontuario, motivoExclusao, codigoEtniaIndigena, keyword)" +
-                        "SELECT ?,?,?,?,?,?,?,"+
-                            "(SELECT id FROM cidade WHERE codigoSistema = ?),"+
-                            "?,?,?,?,"+
-                            "(SELECT id FROM raca WHERE codigoSistema = ?),"+
-                            "(SELECT id FROM pais WHERE codigoSistema = ?),"+
-                            "?,?,?,?,"+
-                            "(SELECT id FROM domicilio WHERE codigoSistema = ?),"+
-                            "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,"+
-                            "(SELECT id FROM etniaIndigena WHERE codigoSistema = ?),"+
-                            "?"+
-                            " FROM paciente LIMIT 1";
+            tx.executeSql(sql, binding, function(transaction, result) {
+                if (result.rowsAffected <= 0) {
+                    var sqlInsert = "INSERT OR REPLACE INTO paciente " +
+                        "(codigoSistema, versao, excluido, nome, dataNascimento, sexo, nomeMae, codigoCidade," +
+                        "cpf, rg, telefone, celular, codigoRaca, codigoPais, email, apelido," +
+                        "flagResponsavelFamiliar, nacionalidade, codigoDomicilio, telefone2," +
+                        "telefone3, telefone4, religiao, localTrabalho, telefoneTrabalho, responsavel, parentescoResponsavel," +
+                        "urgenciaNome, urgenciaTelefone, urgenciaParentesco, rendaFamiliar, resideDesde, situacao, nis, prontuario, motivoExclusao, codigoEtniaIndigena, keyword, codigoResponsavelFamiliar)" +
+                        "SELECT ?,?,?,?,?,?,?," +
+                        "(SELECT id FROM cidade WHERE codigoSistema = ?)," +
+                        "?,?,?,?," +
+                        "(SELECT id FROM raca WHERE codigoSistema = ?)," +
+                        "(SELECT id FROM pais WHERE codigoSistema = ?)," +
+                        "?,?,?,?," +
+                        "(SELECT id FROM domicilio WHERE codigoSistema = ?)," +
+                        "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?," +
+                        "(SELECT id FROM etniaIndigena WHERE codigoSistema = ?)," +
+                        "?, (SELECT id FROM paciente WHERE codigoSistema = ?)" +
+                        " FROM paciente LIMIT 1";
 
                     var bindingInsert = [];
                     bindingInsert.push(pac.codigoSistema);
                     bindingInsert.extend($scope.setPropertiesPaciente(pac));
 
-                    tx.executeSql(sqlInsert, bindingInsert, function (transaction, result) {
-                    }, function (transaction, error) {
+                    tx.executeSql(sqlInsert, bindingInsert, function(transaction, result) {}, function(transaction, error) {
                         $scope.log.unshift(error.message);
                         return true;
                     });
                 }
-            }, function (transaction, error) {
+            }, function(transaction, error) {
                 $scope.log.unshift(error.message);
                 return true;
             });
         };
-        
-        $scope.setPropertiesPaciente = function(paciente){
+
+        $scope.setPropertiesPaciente = function(paciente) {
             var binding = [];
-            
+
             binding.push(paciente.versao);
             binding.push(paciente.excluido);
             binding.push(paciente.nome);
@@ -3890,17 +4939,18 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             binding.push(paciente.prontuario);
             binding.push(paciente.motivoExclusao);
             binding.push(paciente.codigoEtniaIndigena);
-            binding.push(paciente.keyword);
-            
+            binding.push(paciente.keyword.latinise());
+            binding.push(paciente.codigoResponsavelFamiliar);
+
             return binding;
         };
-        
+
         $scope.parseCns = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             var linha = data.split('\n');
-            for (var i = 0; i < linha.length -1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3915,29 +4965,29 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
             linha = null;
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO cns " +
-                                "(id, codigoSistema, versao, excluido, numeroCartao, codigoPaciente)" +
-                                " VALUES (?, ?, ?, ?, ?," +
-                                "(SELECT id FROM paciente WHERE codigoSistema = ?))";
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO cns " +
+                            "(id, codigoSistema, versao, excluido, numeroCartao, codigoPaciente)" +
+                            " VALUES (?, ?, ?, ?, ?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?))";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
                         binding.push(u.excluido);
                         binding.push(u.numeroCartao);
                         binding.push(u.codigoPaciente);
-                    }else{
+                    } else {
                         sql = "INSERT OR REPLACE INTO cns " +
-                                "(id, codigoSistema, versao, excluido, numeroCartao, codigoPaciente)" +
+                            "(id, codigoSistema, versao, excluido, numeroCartao, codigoPaciente)" +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                            "?,?,?,?,"+
-                            "(SELECT id FROM paciente WHERE codigoSistema = ?)"+
+                            "?,?,?,?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?)" +
                             " FROM cns WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM cns WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
@@ -3949,35 +4999,35 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar CNS.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parsePacienteDado = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             var linha = data.split('\n');
-            for (var i = 0; i < linha.length -1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -3988,38 +5038,38 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "peso": parseInt(registro[3]),
                     "altura": parseInt(registro[4])
                 };
-                if(registro[2] !== ''){
-                    var date = registro[2].substring(0,10).split('-');
+                if (registro[2] !== '') {
+                    var date = registro[2].substring(0, 10).split('-');
                     var hour = registro[2].substring(11).split(':');
-                    itens[i].dataDados = new Date(date[2], date[1] -1, date[0], hour[0], hour[1], hour[2]).getTime() / 1000;
+                    itens[i].dataDados = new Date(date[2], date[1] - 1, date[0], hour[0], hour[1], hour[2]).getTime() / 1000;
                 }
             }
             linha = null;
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
+                    if (novo) {
                         sql = "INSERT OR REPLACE INTO pacienteDado " +
-                                "(id, versao, dataColeta, peso, altura, codigoPaciente)" +
-                                " VALUES (?, ?, ?, ?, ?," +
-                                "(SELECT id FROM paciente WHERE codigoSistema = ?))";
+                            "(id, versao, dataColeta, peso, altura, codigoPaciente)" +
+                            " VALUES (?, ?, ?, ?, ?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?))";
                         binding.push(u.id);
                         binding.push(u.versao);
                         binding.push(u.dataDados);
                         binding.push(u.peso);
                         binding.push(u.altura);
                         binding.push(u.codigoSistema);
-                    }else{
+                    } else {
                         sql = "INSERT OR REPLACE INTO pacienteDado " +
-                                "(id, versao, dataColeta, peso, altura, codigoPaciente)" +
+                            "(id, versao, dataColeta, peso, altura, codigoPaciente)" +
                             "SELECT CASE WHEN p.codigoSistema = ? THEN pd.id ELSE null END ," +
-                            "?,?,?,?,"+
-                            "(SELECT id FROM paciente WHERE codigoSistema = ?)"+
+                            "?,?,?,?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?)" +
                             " FROM pacienteDado pd LEFT JOIN paciente p ON pd.codigoPaciente = p.id WHERE p.codigoSistema = ? OR NOT EXISTS(SELECT pd2.id FROM pacienteDado pd2 LEFT JOIN paciente p2 WHERE p2.codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -4031,35 +5081,35 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Paciente Dado.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parseDocumentos = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             var linha = data.split('\n');
-            for (var i = 0; i < linha.length -1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -4080,28 +5130,28 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "siglaUf": emptyToNull(registro[13]),
                     "codigoPaciente": parseInt(registro[14])
                 };
-                if(registro[12] !== ''){
+                if (registro[12] !== '') {
                     var date = registro[12].split('-');
-                    itens[i].dataEmissao = new Date(date[2], date[1] -1, date[0]).getTime() / 1000;
+                    itens[i].dataEmissao = new Date(date[2], date[1] - 1, date[0]).getTime() / 1000;
                 }
             }
             linha = null;
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO documentos " +
-                                "(id, codigoSistema, versao, excluido, tipoDocumento, numeroDocumento, complemento, codigoOrgaoEmissor,"+
-                                "numeroCartorio, numeroLivro, numeroFolha, numeroTermo, numeroMatricula, dataEmissao, siglaUf, codigoPaciente)" +
-                                " VALUES (?, ?, ?, ?, ?,?,?," +
-                                "(SELECT id FROM orgaoEmissor WHERE codigoSistema = ?),"+
-                                "?,?,?,?,?,?,?,"+
-                                "(SELECT id FROM paciente WHERE codigoSistema = ?))";
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO documentos " +
+                            "(id, codigoSistema, versao, excluido, tipoDocumento, numeroDocumento, complemento, codigoOrgaoEmissor," +
+                            "numeroCartorio, numeroLivro, numeroFolha, numeroTermo, numeroMatricula, dataEmissao, siglaUf, codigoPaciente)" +
+                            " VALUES (?, ?, ?, ?, ?,?,?," +
+                            "(SELECT id FROM orgaoEmissor WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?,?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?))";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -4118,15 +5168,15 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.dataEmissao);
                         binding.push(u.siglaUf);
                         binding.push(u.codigoPaciente);
-                    }else{
+                    } else {
                         sql = "INSERT OR REPLACE INTO documentos " +
-                                "(id, codigoSistema, versao, excluido, tipoDocumento, numeroDocumento, complemento, codigoOrgaoEmissor,"+
-                                "numeroCartorio, numeroLivro, numeroFolha, numeroTermo, numeroMatricula, dataEmissao, siglaUf, codigoPaciente)" +
+                            "(id, codigoSistema, versao, excluido, tipoDocumento, numeroDocumento, complemento, codigoOrgaoEmissor," +
+                            "numeroCartorio, numeroLivro, numeroFolha, numeroTermo, numeroMatricula, dataEmissao, siglaUf, codigoPaciente)" +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                            "?,?,?,?,?,?,"+
-                            "(SELECT id FROM orgaoEmissor WHERE codigoSistema = ?),"+
-                            "?,?,?,?,?,?,?,"+
-                            "(SELECT id FROM paciente WHERE codigoSistema = ?)"+
+                            "?,?,?,?,?,?," +
+                            "(SELECT id FROM orgaoEmissor WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?,?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?)" +
                             " FROM documentos WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM documentos WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
@@ -4148,35 +5198,35 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar Documentos.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
+
         $scope.parsePacienteEsus = function(data, novo) {
             var deferred = $q.defer();
-            
+
             var itens = [];
             var linha = data.split('\n');
-            for (var i = 0; i < linha.length -1; i++) {
+            for (var i = 0; i < linha.length - 1; i++) {
                 var registro = linha[i].split('|');
 
                 itens[i] = {
@@ -4269,42 +5319,42 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                     "proteseOutros": parseInt(registro[85]),
                     "parentescoResponsavel": parseInt(registro[86])
                 };
-                if(registro[3] !== ''){
+                if (registro[3] !== '') {
                     var date = registro[3].split('-');
-                    itens[i].dataCadastro = new Date(date[2], date[1] -1, date[0]).getTime() / 1000;
+                    itens[i].dataCadastro = new Date(date[2], date[1] - 1, date[0]).getTime() / 1000;
                 }
             }
             linha = null;
 
             var errorMessage = '';
-            DB.session.transaction(function (tx) {
+            DB.session.transaction(function(tx) {
                 for (var i = 0; i < itens.length; i++) {
                     var u = itens[i];
                     var count = 0;
                     var binding = [];
                     var sql;
-                    if(novo){
-                        sql = "INSERT INTO pacienteEsus " +
-                               "(id, codigoSistema, versao, codigoPaciente, dataCadastro, situacaoConjugal, codigoCbo, frequentaEscola, nivelEscolaridade,"+
-                               "situacaoMercadoTrabalho, responsavelCrianca, frequentaCurandeira, participaGrupoComunitario, possuiPlanoSaude, membroComunidadeTradicional,"+
-                               "comunidadeTradicional, orientacaoSexual, deficienciaAuditiva, deficienciaVisual, deficienciaFisica, deficienciaIntelectual, deficienciaOutra,"+
-                               "situacaoRua, tempoRua, acompanhadoPorOutraInstituicao, nomeOutraInstituicao, recebeBeneficio, possuiReferenciaFamiliar,"+
-                               "visitaFamiliarFrequentemente, grauParentesco, refeicoesDia, refeicaoRestaurantePopular, refeicaoDoacaoRestaurante, refeicaoDoacaoReligioso,"+
-                               "refeicaoDoacaoPopular, refeicaoDoacaoOutros, acessoHigienePessoal, higieneBanho, higieneSanitario, higieneBucal, higieneOutros, estaGestante,"+
-                               "maternidadeReferencia, pesoConsiderado, fumante, dependenteAlcool, dependenteDroga, temHipertensao, temDiabetes, teveAvc, teveInfarto,"+
-                               "temHanseniase, temTuberculose, temTeveCancer, internacaoAno, causaInternacao, fezTratamentoPsiquiatrico, estaAcamado, estaDomiciliado,"+
-                               "usaPlantasMedicinais, quaisPlantas, doencaCardiaca, cardiacaInsuficiencia, cardiacaOutros, cardiacaNaoSabe, doencaRins, rinsInsuficiencia,"+
-                               "rinsOutros, rinsNaoSabe, doencaRespiratoria, respiratoriaAsma, respiratoriaEfisema, respiratoriaOutros, respiratoriaNaoSabe,"+
-                               "outrasPraticasIntegrativas, condicaoSaude1, condicaoSaude2, condicaoSaude3, possuiDeficiencia, informaOrientacaoSexual,"+
-                               "possuiSofrimentoPsiquicoGrave, utilizaProtese, proteseAuditiva, proteseMembrosSuperiores, proteseMembrosInferiores, proteseCadeiraRodas, proteseOutros, parentescoResponsavel)"+
-                                " VALUES (?,?,?,"+
-                                "(SELECT id FROM paciente WHERE codigoSistema = ?),"+
-                                "?,?," +
-                                "(SELECT id FROM cbo WHERE codigoSistema = ?),"+
-                                "?,?,?,?,?,?,?,?,?,?,"+"?,?,?,?,?,?,?,?,?,?,"+
-                                "?,?,?,?,?,?,?,?,?,?,"+"?,?,?,?,?,?,?,?,?,?,"+
-                                "?,?,?,?,?,?,?,?,?,?,"+"?,?,?,?,?,?,?,?,?,?,"+
-                                "?,?,?,?,?,?,?,?,?,?,"+"?,?,?,?,?,?,?,?,?,?,?)";
+                    if (novo) {
+                        sql = "INSERT OR REPLACE INTO pacienteEsus " +
+                            "(id, codigoSistema, versao, codigoPaciente, dataCadastro, situacaoConjugal, codigoCbo, frequentaEscola, nivelEscolaridade," +
+                            "situacaoMercadoTrabalho, responsavelCrianca, frequentaCurandeira, participaGrupoComunitario, possuiPlanoSaude, membroComunidadeTradicional," +
+                            "comunidadeTradicional, orientacaoSexual, deficienciaAuditiva, deficienciaVisual, deficienciaFisica, deficienciaIntelectual, deficienciaOutra," +
+                            "situacaoRua, tempoRua, acompanhadoPorOutraInstituicao, nomeOutraInstituicao, recebeBeneficio, possuiReferenciaFamiliar," +
+                            "visitaFamiliarFrequentemente, grauParentesco, refeicoesDia, refeicaoRestaurantePopular, refeicaoDoacaoRestaurante, refeicaoDoacaoReligioso," +
+                            "refeicaoDoacaoPopular, refeicaoDoacaoOutros, acessoHigienePessoal, higieneBanho, higieneSanitario, higieneBucal, higieneOutros, estaGestante," +
+                            "maternidadeReferencia, pesoConsiderado, fumante, dependenteAlcool, dependenteDroga, temHipertensao, temDiabetes, teveAvc, teveInfarto," +
+                            "temHanseniase, temTuberculose, temTeveCancer, internacaoAno, causaInternacao, fezTratamentoPsiquiatrico, estaAcamado, estaDomiciliado," +
+                            "usaPlantasMedicinais, quaisPlantas, doencaCardiaca, cardiacaInsuficiencia, cardiacaOutros, cardiacaNaoSabe, doencaRins, rinsInsuficiencia," +
+                            "rinsOutros, rinsNaoSabe, doencaRespiratoria, respiratoriaAsma, respiratoriaEfisema, respiratoriaOutros, respiratoriaNaoSabe," +
+                            "outrasPraticasIntegrativas, condicaoSaude1, condicaoSaude2, condicaoSaude3, possuiDeficiencia, informaOrientacaoSexual," +
+                            "possuiSofrimentoPsiquicoGrave, utilizaProtese, proteseAuditiva, proteseMembrosSuperiores, proteseMembrosInferiores, proteseCadeiraRodas, proteseOutros, parentescoResponsavel)" +
+                            " VALUES (?,?,?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?)," +
+                            "?,?," +
+                            "(SELECT id FROM cbo WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?,?,?,?,?," + "?,?,?,?,?,?,?,?,?,?," +
+                            "?,?,?,?,?,?,?,?,?,?," + "?,?,?,?,?,?,?,?,?,?," +
+                            "?,?,?,?,?,?,?,?,?,?," + "?,?,?,?,?,?,?,?,?,?," +
+                            "?,?,?,?,?,?,?,?,?,?," + "?,?,?,?,?,?,?,?,?,?,?)";
                         binding.push(u.id);
                         binding.push(u.codigoSistema);
                         binding.push(u.versao);
@@ -4393,29 +5443,29 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.proteseCadeiraRodas);
                         binding.push(u.proteseOutros);
                         binding.push(u.parentescoResponsavel);
-                    }else{
+                    } else {
                         sql = "INSERT OR REPLACE INTO pacienteEsus " +
-                               "(id, codigoSistema, versao, codigoPaciente, dataCadastro, situacaoConjugal, codigoCbo, frequentaEscola, nivelEscolaridade,"+
-                               "situacaoMercadoTrabalho, responsavelCrianca, frequentaCurandeira, participaGrupoComunitario, possuiPlanoSaude, membroComunidadeTradicional,"+
-                               "comunidadeTradicional, orientacaoSexual, deficienciaAuditiva, deficienciaVisual, deficienciaFisica, deficienciaIntelectual, deficienciaOutra,"+
-                               "situacaoRua, tempoRua, acompanhadoPorOutraInstituicao, nomeOutraInstituicao, recebeBeneficio, possuiReferenciaFamiliar,"+
-                               "visitaFamiliarFrequentemente, grauParentesco, refeicoesDia, refeicaoRestaurantePopular, refeicaoDoacaoRestaurante, refeicaoDoacaoReligioso,"+
-                               "refeicaoDoacaoPopular, refeicaoDoacaoOutros, acessoHigienePessoal, higieneBanho, higieneSanitario, higieneBucal, higieneOutros, estaGestante,"+
-                               "maternidadeReferencia, pesoConsiderado, fumante, dependenteAlcool, dependenteDroga, temHipertensao, temDiabetes, teveAvc, teveInfarto,"+
-                               "temHanseniase, temTuberculose, temTeveCancer, internacaoAno, causaInternacao, fezTratamentoPsiquiatrico, estaAcamado, estaDomiciliado,"+
-                               "usaPlantasMedicinais, quaisPlantas, doencaCardiaca, cardiacaInsuficiencia, cardiacaOutros, cardiacaNaoSabe, doencaRins, rinsInsuficiencia,"+
-                               "rinsOutros, rinsNaoSabe, doencaRespiratoria, respiratoriaAsma, respiratoriaEfisema, respiratoriaOutros, respiratoriaNaoSabe,"+
-                               "outrasPraticasIntegrativas, condicaoSaude1, condicaoSaude2, condicaoSaude3, possuiDeficiencia, informaOrientacaoSexual,"+
-                               "possuiSofrimentoPsiquicoGrave, utilizaProtese, proteseAuditiva, proteseMembrosSuperiores, proteseMembrosInferiores, proteseCadeiraRodas, proteseOutros, parentescoResponsavel)"+
+                            "(id, codigoSistema, versao, codigoPaciente, dataCadastro, situacaoConjugal, codigoCbo, frequentaEscola, nivelEscolaridade," +
+                            "situacaoMercadoTrabalho, responsavelCrianca, frequentaCurandeira, participaGrupoComunitario, possuiPlanoSaude, membroComunidadeTradicional," +
+                            "comunidadeTradicional, orientacaoSexual, deficienciaAuditiva, deficienciaVisual, deficienciaFisica, deficienciaIntelectual, deficienciaOutra," +
+                            "situacaoRua, tempoRua, acompanhadoPorOutraInstituicao, nomeOutraInstituicao, recebeBeneficio, possuiReferenciaFamiliar," +
+                            "visitaFamiliarFrequentemente, grauParentesco, refeicoesDia, refeicaoRestaurantePopular, refeicaoDoacaoRestaurante, refeicaoDoacaoReligioso," +
+                            "refeicaoDoacaoPopular, refeicaoDoacaoOutros, acessoHigienePessoal, higieneBanho, higieneSanitario, higieneBucal, higieneOutros, estaGestante," +
+                            "maternidadeReferencia, pesoConsiderado, fumante, dependenteAlcool, dependenteDroga, temHipertensao, temDiabetes, teveAvc, teveInfarto," +
+                            "temHanseniase, temTuberculose, temTeveCancer, internacaoAno, causaInternacao, fezTratamentoPsiquiatrico, estaAcamado, estaDomiciliado," +
+                            "usaPlantasMedicinais, quaisPlantas, doencaCardiaca, cardiacaInsuficiencia, cardiacaOutros, cardiacaNaoSabe, doencaRins, rinsInsuficiencia," +
+                            "rinsOutros, rinsNaoSabe, doencaRespiratoria, respiratoriaAsma, respiratoriaEfisema, respiratoriaOutros, respiratoriaNaoSabe," +
+                            "outrasPraticasIntegrativas, condicaoSaude1, condicaoSaude2, condicaoSaude3, possuiDeficiencia, informaOrientacaoSexual," +
+                            "possuiSofrimentoPsiquicoGrave, utilizaProtese, proteseAuditiva, proteseMembrosSuperiores, proteseMembrosInferiores, proteseCadeiraRodas, proteseOutros, parentescoResponsavel)" +
                             "SELECT CASE WHEN codigoSistema = ? THEN id ELSE null END ," +
-                                "?,?,"+
-                                "(SELECT id FROM paciente WHERE codigoSistema = ?),"+
-                                "?,?," +
-                                "(SELECT id FROM cbo WHERE codigoSistema = ?),"+
-                                "?,?,?,?,?,?,?,?,?,?,"+"?,?,?,?,?,?,?,?,?,?,"+
-                                "?,?,?,?,?,?,?,?,?,?,"+"?,?,?,?,?,?,?,?,?,?,"+
-                                "?,?,?,?,?,?,?,?,?,?,"+"?,?,?,?,?,?,?,?,?,?,"+
-                                "?,?,?,?,?,?,?,?,?,?,"+"?,?,?,?,?,?,?,?,?,?,?"+
+                            "?,?," +
+                            "(SELECT id FROM paciente WHERE codigoSistema = ?)," +
+                            "?,?," +
+                            "(SELECT id FROM cbo WHERE codigoSistema = ?)," +
+                            "?,?,?,?,?,?,?,?,?,?," + "?,?,?,?,?,?,?,?,?,?," +
+                            "?,?,?,?,?,?,?,?,?,?," + "?,?,?,?,?,?,?,?,?,?," +
+                            "?,?,?,?,?,?,?,?,?,?," + "?,?,?,?,?,?,?,?,?,?," +
+                            "?,?,?,?,?,?,?,?,?,?," + "?,?,?,?,?,?,?,?,?,?,?" +
                             " FROM pacienteEsus WHERE codigoSistema = ? OR NOT EXISTS(SELECT id FROM pacienteEsus WHERE codigoSistema = ?) LIMIT 1";
                         binding.push(u.codigoSistema);
                         binding.push(u.codigoSistema);
@@ -4509,27 +5559,28 @@ controllers.controller('sincronizacaoInicialCtrl', ['$q', '$scope', '$state', '$
                         binding.push(u.codigoSistema);
                     }
 
-                    tx.executeSql(sql, binding, function (transaction, result) {
+                    tx.executeSql(sql, binding, function(transaction, result) {
                         count++;
-                        if(count % 100 === 0 && errorMessage === ''){
+                        if (count % 100 === 0 && errorMessage === '') {
                             $scope.$apply();
                         }
-                    }, function (transaction, error) {
-                        if(errorMessage === ''){
+                    }, function(transaction, error) {
+                        if (errorMessage === '') {
                             errorMessage = error.message;
                         }
                         return true;
                     });
                 }
-            }, function(e){
+            }, function(e) {
                 $scope.log.unshift('Erro ao importar PacienteEsus.');
                 $scope.log.unshift(errorMessage);
                 deferred.reject(e);
-            }, function(){
+            }, function() {
                 deferred.resolve();
             });
-            
+
             return deferred.promise;
         };
-        
-    }]);
+
+    }
+]);

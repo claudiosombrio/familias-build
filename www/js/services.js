@@ -1,6 +1,6 @@
 services.factory('$celkScroll', function($ionicScrollDelegate) {
     var self = this;
-    
+
     self.toTop = function(handleName){
         if(handleName){
             $ionicScrollDelegate.$getByHandle(handleName).resize().then(function() {
@@ -12,43 +12,67 @@ services.factory('$celkScroll', function($ionicScrollDelegate) {
             });
         }
     };
-    
+
     return self;
 });
 
 services.factory('SERVER', function($http, $q) {
     var self = this;
-    
+
     self.post = function(recurso, objeto){
         var deferred = $q.defer();
         var url = window.localStorage.getItem("url");
-        
+
         var req = {
             method: 'POST',
             url: url + G_versao + '/' + G_id + '/enviarRecurso?nomeRecurso='+recurso,
             headers: {
                 'Content-Type': 'text/plain'
             },
+            timeout: 1000000,
             data: objeto
         };
-        
+
         $http(req)
             .success(function (data, status, headers, config) {
                 return deferred.resolve(data, status, headers, config);
             }).error(function (data, status, headers, config) {
                 return deferred.reject(data, status, headers, config);
             });
-    
-        return deferred.promise;    
+
+        return deferred.promise;
     };
-    
+
+
+    self.get = function(recurso){
+        var deferred = $q.defer();
+        var url = window.localStorage.getItem("url");
+
+        var req = {
+            method: 'GET',
+            url: url + G_versao + '/' + G_id + '/' + recurso,
+            headers: {
+                'Content-Type': 'text/plain'
+            }
+        };
+
+        $http(req)
+            .success(function (data, status, headers, config) {
+                return deferred.resolve(data, status, headers, config);
+            }).error(function (data, status, headers, config) {
+                return deferred.reject(data, status, headers, config);
+            });
+
+        return deferred.promise;
+    };
+
     return self;
 });
 
 services.factory('FS', function() {
     var FS = this;
     FS.fileSystem = null;
-    
+
     FS.init = function(){
         if (window.cordova) {
             window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, function (fileSystem) {
@@ -58,7 +82,7 @@ services.factory('FS', function() {
             });
         }
     };
-    
+
     return FS;
 });
 
@@ -66,7 +90,7 @@ readyCallbacks = [];
 services.factory('DB', function($q) {
     var self = this;
     self.session = null;
-    
+
     self.ready = function(callback){
         if(G_DB_ready){
             callback();
@@ -74,22 +98,22 @@ services.factory('DB', function($q) {
             readyCallbacks.push(callback);
         }
     };
-    
+
     self.DBready = function(){
         G_DB_ready = true;
         for(var i = 0; i < readyCallbacks.length; i++){
             readyCallbacks[i]();
         }
     };
- 
-    self.delete = function() {
-        window.sqlitePlugin.deleteDatabase("familia.db");
+
+    self.delete = function(callback, callbackerror) {
+        window.sqlitePlugin.deleteDatabase("familia.db", callback, callbackerror);
     };
-    
-    self.init = function() {
+
+    self.init = function(callback) {
         G_DB_ready = false;
         if(window.cordova){
-            self.session = window.sqlitePlugin.openDatabase({name: 'familia.db', location: 'default'});
+            self.session = window.sqlitePlugin.openDatabase({name: "familia.db"});
             console.log('BANCO SQLITE');
 
             self.session.executeSql("PRAGMA foreign_keys = ON;", [],function (res) {
@@ -102,8 +126,8 @@ services.factory('DB', function($q) {
         console.log('CELK BANCO INICIADO');
 
         self.query("PRAGMA user_version;", []).then(function(result){
-            var versaoAtual = parseInt(self.fetch(result).user_version); 
-            
+            var versaoAtual = parseInt(self.fetch(result).user_version);
+
             console.log('VERSAO ATUAL '+ versaoAtual);
             switch(versaoAtual + 1){
                 case 1: migracaoInicial();
@@ -113,7 +137,10 @@ services.factory('DB', function($q) {
                 case 5: migracao5();
                 case 6: migracao6();
                 case 7: migracao7();
-                        versaoAtual = 7;//Deve receber o valor do ultimo case
+                case 8: migracao8();
+                case 9: migracao9();
+                case 10: migracao10();
+                        versaoAtual = 10;//Deve receber o valor do ultimo case
             };
 
             self.createVersionTriggers();
@@ -121,11 +148,144 @@ services.factory('DB', function($q) {
             self.session.executeSql("PRAGMA user_version = '"+versaoAtual+"';", [],function (res) {
                 //Chamar ready apos a ultima execucao
                 console.log('TERMINOU DE EXECUTAR OS SQLS');
+
                 self.DBready();
+                if(callback){
+                  callback();
+                }
             });
         });
     };
-    
+
+    migracao10 = function(){
+        console.log('MIGRACAO DE SQL 10');
+        var sql = "ALTER TABLE equipe ADD permiteAlteracaoPaciente INTEGER;";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao adicionar permiteAlteracaoPaciente em equipe: '+ error.message);
+        });
+        
+        var sql = "ALTER TABLE domicilio ADD visitaNoMes INTEGER DEFAULT 0;";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao adicionar visitaNoMes em domicilio: '+ error.message);
+        });        
+
+        var sql = "UPDATE visitaDomiciliar SET motivoOutros = 1 WHERE ifnull(motivoAtualizacao,0) = 0 and ifnull(motivoVisitaPeriodica,0) = 0 and ifnull(motivoBaConsulta,0) = 0 and ifnull(motivoBaExame,0) = 0 and "+
+                 " ifnull(motivoBaVacina,0) = 0 and ifnull(motivoBaCondicionalidadesBolsaFamilia,0) = 0 and ifnull(motivoAcGestante,0) = 0 and ifnull(motivoAcPuerpera,0) = 0 and  "+
+                 " ifnull(motivoAcRecemNascido,0) = 0 and ifnull(motivoAcCrianca,0) = 0 and ifnull(motivoAcPessoaDesnutrida,0) = 0 and ifnull(motivoAcPessoaDeficiente,0) = 0 and  "+
+                 " ifnull(motivoAcPessoaHipertensa,0) = 0 and ifnull(motivoAcPessoaDiabetes,0) = 0 and ifnull(motivoAcPessoaAsmatica,0) = 0 and ifnull(motivoAcPessoaEnfisema,0) = 0 and  "+
+                 " ifnull(motivoAcPessoaCancer,0) = 0 and ifnull(motivoAcPessoaDoencaCronica,0) = 0 and ifnull(motivoAcPessoaHanseniase,0) = 0 and ifnull(motivoAcPessoaTuberculose,0) = 0 and  "+
+                 " ifnull(motivoAcAcamado,0) = 0 and ifnull(motivoAcVulnerabilidadeSocial,0) = 0 and ifnull(motivoAcCondicionalidadesBolsaFamilia,0) = 0 and ifnull(motivoAcSaudeMental,0) = 0 and  "+
+                 " ifnull(motivoAcUsuarioAlcool,0) = 0 and ifnull(motivoAcUsuarioDroga,0) = 0 and ifnull(motivoEgressoInternacao,0) = 0 and ifnull(motivoControleAmbientesVetores,0) = 0 and  "+
+                 " ifnull(motivoCampanhaSaude,0) = 0 and ifnull(motivoPrevencao,0) = 0 and ifnull(motivoOutros,0) = 0;";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao atualizar visitas sem motivo: '+ error.message);
+        });
+    };
+
+    migracao9 = function(){
+        //NAO EXECUTA NADA DEVIDO A ERRO EM VERSOES ANTERIORES
+        console.log('MIGRACAO DE SQL 9');
+    };
+
+    migracao8 = function(){
+        console.log('MIGRACAO DE SQL 8');
+
+        var sql = "CREATE TABLE IF NOT EXISTS pesquisa ( " +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "codigoSistema INTEGER NOT NULL, " +
+                "versao INTEGER NOT NULL, " +
+                "descricao VARCHAR NOT NULL, "+
+                "inicio INTEGER NOT NULL, "+
+                "fim INTEGER NOT NULL, "+
+                "status INTEGER NOT NULL)";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao criar tabela pesquisa: '+ error.message);
+        });
+        self.query('CREATE INDEX IF NOT EXISTS idx_pesquisa ON pesquisa(codigoSistema)').then(null, function(error){
+            console.error('CELK Erro ao criar indice idx_pesquisa: '+ error.message);
+        });
+
+        var sql = "CREATE TABLE IF NOT EXISTS perguntaPesquisa ( " +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "codigoSistema INTEGER NOT NULL, " +
+                "versao INTEGER NOT NULL, " +
+                "descricao VARCHAR NOT NULL)";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao criar tabela perguntaPesquisa: '+ error.message);
+        });
+        self.query('CREATE INDEX IF NOT EXISTS idx_perguntaPesquisa ON perguntaPesquisa(codigoSistema)').then(null, function(error){
+            console.error('CELK Erro ao criar indice idx_perguntaPesquisa: '+ error.message);
+        });
+
+        var sql = "CREATE TABLE IF NOT EXISTS pesquisaPergunta ( " +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "codigoSistema INTEGER NOT NULL, " +
+                "versao INTEGER NOT NULL, " +
+                "codigoPesquisa INTEGER NOT NULL, "+
+                "codigoPergunta INTEGER NOT NULL, "+
+                "FOREIGN KEY(codigoPesquisa) REFERENCES pesquisa(id) "+
+                "FOREIGN KEY(codigoPergunta) REFERENCES perguntaPesquisa(id))";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao criar tabela pesquisaPergunta: '+ error.message);
+        });
+        self.query('CREATE INDEX IF NOT EXISTS idx_pesquisaPergunta ON pesquisaPergunta(codigoSistema)').then(null, function(error){
+            console.error('CELK Erro ao criar indice idx_pesquisaPergunta: '+ error.message);
+        });
+
+        var sql = "CREATE TABLE IF NOT EXISTS perguntaResposta ( " +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "codigoSistema INTEGER NOT NULL, " +
+                "versao INTEGER NOT NULL, " +
+                "descricao VARCHAR NOT NULL, "+
+                "codigoPergunta INTEGER NOT NULL, "+
+                "FOREIGN KEY(codigoPergunta) REFERENCES perguntaPesquisa(id))";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao criar tabela perguntaResposta: '+ error.message);
+        });
+        self.query('CREATE INDEX IF NOT EXISTS idx_perguntaResposta ON perguntaResposta(codigoSistema)').then(null, function(error){
+            console.error('CELK Erro ao criar indice idx_perguntaResposta: '+ error.message);
+        });
+
+        var sql = "CREATE TABLE IF NOT EXISTS pesquisaVisita ( " +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "codigoResposta INTEGER NOT NULL, " +
+                "codigoVisita INTEGER NOT NULL, " +
+                "codigoPesquisaPergunta INTEGER NOT NULL, " +
+                "codigoUsuario INTEGER NOT NULL, " +
+                "FOREIGN KEY(codigoResposta) REFERENCES perguntaResposta(id),"+
+                "FOREIGN KEY(codigoVisita) REFERENCES visitaDomiciliar(id),"+
+                "FOREIGN KEY(codigoPesquisaPergunta) REFERENCES pesquisaPergunta(id),"+
+                "FOREIGN KEY(codigoUsuario) REFERENCES usuarios(id))";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao criar tabela pesquisaVisita: '+ error.message);
+        });
+
+        var sql = "ALTER TABLE visitaDomiciliar ADD codigoSistema INTEGER;";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao adicionar codigoSistema em visitaDomiciliar: '+ error.message);
+        });
+
+        var sql = "CREATE TABLE IF NOT EXISTS dominioPaciente ( " +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "codigoSistema INTEGER, " +
+                "versao INTEGER , " +
+                "nome VARCHAR , "+
+                "dataNascimento VARCHAR , "+
+                "nomeMae VARCHAR, "+
+                "cns VARCHAR, "+
+                "cpf VARCHAR, "+
+                "descricaoFamilia VARCHAR,"+
+                "sexo VARCHAR,"+
+                "ativo VARCHAR,"+
+                "keyword VARCHAR,"+
+                "codigoInterno INTEGER,"+
+                "codigoMicroArea INTEGER,"+
+                "codigoArea INTEGER)";
+        self.query(sql).then(null, function(error){
+            console.error('CELK Erro ao criar tabela dominioPaciente: '+ error.message);
+        });
+    };
+
     migracao7 = function(){
         console.log('MIGRACAO DE SQL 7');
 
@@ -133,7 +293,7 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao adicionar registroVacina na tabela paciente: '+ error.message);
         });
-        
+
         var sql = "CREATE TABLE IF NOT EXISTS vacinasImagens ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "codigoPaciente INTEGER NOT NULL, " +
@@ -144,10 +304,11 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela vacinasImagens: '+ error.message);
         });
+
         self.query('CREATE INDEX IF NOT EXISTS idx_vac_imagens ON vacinasImagens(codigoPaciente)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_vac_imagens: '+ error.message);
         });
-        
+
         var sql = "CREATE TABLE IF NOT EXISTS tipoVacina ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "codigoSistema INTEGER NOT NULL, " +
@@ -178,7 +339,7 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_reg_vac: '+ error.message);
         });
     };
-    
+
     migracao6 = function(){
         console.log('MIGRACAO DE SQL 6');
 
@@ -191,7 +352,7 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela motivoNaoComparecimento: '+ error.message);
         });
-        
+
         var sql = "CREATE TABLE IF NOT EXISTS notificacaoAgendas ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "codigoSistema INTEGER NOT NULL, " +
@@ -223,10 +384,10 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_not_agendas_3: '+ error.message);
         });
     };
-    
+
     migracao5 = function(){
         console.log('MIGRACAO DE SQL 5');
-        
+
         var sql = "CREATE TABLE IF NOT EXISTS notificacaoPaciente ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "codigoSistema INTEGER NOT NULL, " +
@@ -243,10 +404,10 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_not_paciente_2: '+ error.message);
         });
     };
-    
+
     migracao4 = function(){
         console.log('MIGRACAO DE SQL 4');
-        
+
         var sql = "CREATE TABLE IF NOT EXISTS etniaIndigena ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "codigoSistema INTEGER NULL, " +
@@ -263,10 +424,10 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar coluna codigoEtniaIndigena: '+ error.message);
         });
     };
-    
+
     migracao3 = function(){
         console.log('MIGRACAO DE SQL 3');
-        
+
         var sql = "CREATE TABLE IF NOT EXISTS pacienteDado ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "versao INTEGER NULL, " +
@@ -281,30 +442,30 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela pacienteDado: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_paciente_dado ON pacienteDado(codigoPaciente)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_paciente_dado: '+ error.message);
         });
     };
-    
+
     migracao2 = function(){
         console.log('MIGRACAO DE SQL 2');
-        
+
         self.query("ALTER TABLE paciente ADD COLUMN prontuario varchar(30);").then(null, function(error){
             console.error('CELK Erro ao criar coluna prontuario: '+ error.message);
-        });        
+        });
         self.query("ALTER TABLE paciente ADD COLUMN motivoExclusaoDomicilio INTEGER;").then(null, function(error){
             console.error('CELK Erro ao criar coluna motivoExclusaoDomicilio: '+ error.message);
-        });        
+        });
         self.query("ALTER TABLE paciente ADD COLUMN motivoExclusao INTEGER;").then(null, function(error){
             console.error('CELK Erro ao criar coluna motivoExclusao: '+ error.message);
-        });        
+        });
 
         self.query("ALTER TABLE pacienteEsus ADD COLUMN parentescoResponsavel INTEGER;").then(null, function(error){
             console.error('CELK Erro ao criar coluna parentescoResponsavel: '+ error.message);
-        });        
+        });
     };
-    
+
     migracaoInicial = function(){
         self.tabelaCbo();
         self.tabelaProfissional();
@@ -330,10 +491,10 @@ services.factory('DB', function($q) {
         self.tabelaErroDomicilio();
         self.tabelaErroPaciente();
     };
- 
+
     self.deleteVersionTriggers = function(){
         var deferred = $q.defer();
-        
+
         self.session.transaction(function(transaction) {
             transaction.executeSql("DROP TRIGGER IF EXISTS v_paciente_U;",[], function(transaction, result) {
                 transaction.executeSql("DROP TRIGGER IF EXISTS v_paciente_I;",[], function(transaction, result) {
@@ -382,7 +543,7 @@ services.factory('DB', function($q) {
         });
         return deferred.promise;
     };
-    
+
     self.createVersionTriggers = function(){
         var deferred = $q.defer();
 
@@ -452,7 +613,7 @@ services.factory('DB', function($q) {
 
         return deferred.promise;
     };
-    
+
     self.tabelaProfissional = function(){
         var sql = "CREATE TABLE IF NOT EXISTS profissional ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -462,12 +623,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela profissional: '+ error.message);
         });
-        
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_profissional ON profissional(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_profissional: '+ error.message);
         });
     };
- 
+
     self.tabelaCbo = function(){
         var sql = "CREATE TABLE IF NOT EXISTS cbo ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -477,12 +638,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela cbo: '+ error.message);
         });
-        
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_cbo ON cbo(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_cbo: '+ error.message);
         });
     };
- 
+
     self.tabelaOrgaoEmissor = function(){
         var sql = "CREATE TABLE IF NOT EXISTS orgaoEmissor ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -497,9 +658,9 @@ services.factory('DB', function($q) {
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_orgaoEmissor ON orgaoEmissor(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_orgaoEmissor: '+ error.message);
         });
-        
+
     };
- 
+
     self.tabelaRaca = function(){
         var sql = "CREATE TABLE IF NOT EXISTS raca ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -509,12 +670,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela raca: '+ error.message);
         });
-        
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_raca ON raca(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_raca: '+ error.message);
         });
     };
- 
+
     self.tabelaTipoLogradouro = function(){
         var sql = "CREATE TABLE IF NOT EXISTS tipoLogradouro ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -533,7 +694,7 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_tipoLogradouro_2: '+ error.message);
         });
     };
- 
+
     self.tabelaPais = function(){
         var sql = "CREATE TABLE IF NOT EXISTS pais ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -544,7 +705,7 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela pais: '+ error.message);
         });
-        
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_pais ON pais(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_pais: '+ error.message);
         });
@@ -554,9 +715,9 @@ services.factory('DB', function($q) {
         self.query('CREATE INDEX IF NOT EXISTS idx_pais_3 ON pais(ordem, descricao)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_pais_3: '+ error.message);
         });
-        
+
     };
- 
+
     self.tabelaEstado = function(){
         var sql = "CREATE TABLE IF NOT EXISTS estado ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -571,9 +732,9 @@ services.factory('DB', function($q) {
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_estado ON estado(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_estado: '+ error.message);
         });
-        
+
     };
- 
+
     self.tabelaCidade = function(){
         var sql = "CREATE TABLE IF NOT EXISTS cidade ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -585,7 +746,7 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela cidade: '+ error.message);
         });
-        
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_cidade ON cidade(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_cidade: '+ error.message);
         });
@@ -595,9 +756,9 @@ services.factory('DB', function($q) {
         self.query('CREATE INDEX IF NOT EXISTS idx_cidade_3 ON cidade(codigoEstado)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_cidade_3: '+ error.message);
         });
-        
+
     };
- 
+
     self.tabelaUsuarios = function(){
         var sql = "CREATE TABLE IF NOT EXISTS usuarios ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -613,12 +774,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela usuarios: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios ON usuarios(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_usuarios: '+ error.message);
         });
     };
- 
+
     self.tabelaEquipe = function(){
         var sql = "CREATE TABLE IF NOT EXISTS equipe ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -629,12 +790,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela usuarios: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_equipe ON equipe(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_equipe: '+ error.message);
         });
     };
- 
+
     self.tabelaMicroArea = function(){
         var sql = "CREATE TABLE IF NOT EXISTS microArea ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -644,12 +805,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela microArea: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_microArea ON microArea(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_microArea: '+ error.message);
         });
     };
- 
+
     self.tabelaEquipeProfissional = function(){
         var sql = "CREATE TABLE IF NOT EXISTS equipeProfissional ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -665,12 +826,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela equipeProfissional: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_equipeProfissional ON equipeProfissional(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_equipeProfissional: '+ error.message);
         });
     };
- 
+
     self.tabelaEndereco = function(){
         var sql = "CREATE TABLE IF NOT EXISTS endereco ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -694,7 +855,7 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela endereco: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_endereco ON endereco(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_endereco: '+ error.message);
         });
@@ -703,7 +864,7 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_endereco_2: '+ error.message);
         });
     };
- 
+
     self.tabelaDomicilio = function(){
         var sql = "CREATE TABLE IF NOT EXISTS domicilio ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -720,12 +881,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela domicilio: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_domicilio ON domicilio(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_domicilio: '+ error.message);
         });
     };
- 
+
     self.tabelaDomicilioEsus = function(){
         var sql = "CREATE TABLE IF NOT EXISTS domicilioEsus ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -761,12 +922,12 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela domicilioEsus: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_domicilioesus ON domicilioEsus(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_domicilioesus: '+ error.message);
         });
     };
- 
+
     self.tabelaPaciente = function(){
         var sql = "CREATE TABLE IF NOT EXISTS paciente ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -814,10 +975,17 @@ services.factory('DB', function($q) {
                 "FOREIGN KEY(codigoResponsavelFamiliar) REFERENCES paciente(id),"+
                 "FOREIGN KEY(codigoUsuario) REFERENCES usuarios(id),"+
                 "FOREIGN KEY(codigoDomicilio) REFERENCES domicilio(id))";
-        self.query(sql).then(null, function(error){
+        self.query(sql).then(function(){
+          // var sequenceModify = "UPDATE SQLITE_SEQUENCE SET seq = ? WHERE name = ?"
+          // self.query(sequenceModify, ["1000000000000", "paciente"]).then(function(){
+          //   console.log("Sequence modificada com sucesso!");
+          // }, function(error){
+          //     console.error('CELK Erro modificar sequencia paciente: '+ error.message);
+          // });
+        }, function(error){
             console.error('CELK Erro ao criar tabela paciente: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_paciente ON paciente(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_paciente: '+ error.message);
         });
@@ -842,7 +1010,7 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_paciente_versao: '+ error.message);
         });
     };
- 
+
     self.tabelaPacienteResponsavelAux = function(){
         var sql = "CREATE TABLE IF NOT EXISTS pacienteResponsavelAux ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -856,7 +1024,7 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_pacienteResponsavelAux: '+ error.message);
         });
 };
- 
+
     self.tabelaCns = function(){
         var sql = "CREATE TABLE IF NOT EXISTS cns ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -872,7 +1040,7 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela CNS: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_cns ON cns(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_cns: '+ error.message);
         });
@@ -880,7 +1048,7 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_cns_2: '+ error.message);
         });
     };
- 
+
     self.tabelaDocumentos = function(){
         var sql = "CREATE TABLE IF NOT EXISTS documentos ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -907,7 +1075,7 @@ services.factory('DB', function($q) {
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela documentos: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos ON documentos(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_documentos: '+ error.message);
         });
@@ -915,7 +1083,7 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_documentos_2: '+ error.message);
         });
     };
- 
+
     self.tabelaPacienteEsus = function(){
         var sql = "CREATE TABLE IF NOT EXISTS pacienteEsus ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -1009,11 +1177,11 @@ services.factory('DB', function($q) {
                 "versaoMobile INTEGER DEFAULT 0,"+
                 "FOREIGN KEY(codigoUsuario) REFERENCES usuarios(id),"+
                 "FOREIGN KEY(codigoPaciente) REFERENCES paciente(id),"+
-                "FOREIGN KEY(codigoCbo) REFERENCES paciente(id))";
+                "FOREIGN KEY(codigoCbo) REFERENCES cbo(id))";
         self.query(sql).then(null, function(error){
             console.error('CELK Erro ao criar tabela pacienteEsus: '+ error.message);
         });
-      
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_pacienteEsus ON pacienteEsus(codigoSistema)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_pacienteEsus: '+ error.message);
         });
@@ -1024,7 +1192,7 @@ services.factory('DB', function($q) {
             console.error('CELK Erro ao criar indice idx_pacienteEsus_3: '+ error.message);
         });
     };
- 
+
     self.tabelaVisitaDomiciliar = function(){
         var sql = "CREATE TABLE IF NOT EXISTS visitaDomiciliar ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -1069,16 +1237,17 @@ services.factory('DB', function($q) {
                 "horaColetaGps INTEGER,"+
                 "latitude VARCHAR(50),"+
                 "longitude VARCHAR(50),"+
+                "versaoMobile INTEGER,"+
                 "FOREIGN KEY(codigoUsuario) REFERENCES usuarios(id)"+
                 "FOREIGN KEY(codigoDomicilio) REFERENCES domicilio(id)"+
                 "FOREIGN KEY(codigoPaciente) REFERENCES paciente(id))";
         self.query(sql).then(function(){
-            
+
         }, function(error){
             console.error('CELK Erro ao criar tabela visitaDomiciliar: '+ error.message);
         });
     };
- 
+
     self.tabelaErroDomicilio = function(){
         var sql = "CREATE TABLE IF NOT EXISTS erroDomicilio ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -1086,16 +1255,16 @@ services.factory('DB', function($q) {
                 "mensagem VARCHAR, " +
                 "FOREIGN KEY(codigoDomicilio) REFERENCES domicilio(id))";
         self.query(sql).then(function(){
-            
+
         }, function(error){
             console.error('CELK Erro ao criar tabela erroDomicilio: '+ error.message);
         });
-        
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_erroDomicilio ON erroDomicilio(codigoDomicilio)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_erroDomicilio: '+ error.message);
         });
     };
- 
+
     self.tabelaErroPaciente = function(){
         var sql = "CREATE TABLE IF NOT EXISTS erroPaciente ( " +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -1103,34 +1272,34 @@ services.factory('DB', function($q) {
                 "mensagem VARCHAR, " +
                 "FOREIGN KEY(codigoPaciente) REFERENCES paciente(id))";
         self.query(sql).then(function(){
-            
+
         }, function(error){
             console.error('CELK Erro ao criar tabela erroPaciente: '+ error.message);
         });
-        
+
         self.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_erroPaciente ON erroPaciente(codigoPaciente)').then(null, function(error){
             console.error('CELK Erro ao criar indice idx_erroPaciente: '+ error.message);
         });
     };
- 
+
     self.executeTransaction = function(tx, query, bindings) {
         bindings = typeof bindings !== 'undefined' ? bindings : [];
         var deferred = $q.defer();
-        
+
         tx.executeSql(query, bindings, function(transaction, result) {
             deferred.resolve(transaction, result);
         }, function(transaction, error) {
             deferred.reject(error);
             return true;
         });
-        
+
         return deferred.promise;
     };
-    
+
     self.query = function(query, bindings) {
         bindings = typeof bindings !== 'undefined' ? bindings : [];
         var deferred = $q.defer();
-        
+
         self.session.transaction(function(transaction) {
             transaction.executeSql(query, bindings, function(transaction, result) {
                 deferred.resolve(result);
@@ -1140,20 +1309,20 @@ services.factory('DB', function($q) {
         }, function(err){
             deferred.reject(err);
         });
- 
+
         return deferred.promise;
     };
- 
+
     self.fetchAll = function(result) {
         var output = [];
- 
+
         for (var i = 0; i < result.rows.length; i++) {
             output.push(result.rows.item(i));
         }
-        
+
         return output;
     };
- 
+
     self.fetch = function(result) {
         if(result.rows.length > 0){
             return result.rows.item(0);
@@ -1161,6 +1330,6 @@ services.factory('DB', function($q) {
             return null;
         }
     };
- 
+
     return self;
 });

@@ -1,0 +1,12 @@
+<ion-view>
+    <ion-content padding="true">
+        <div ng-if="bind.codigoPesquisa >= 0" class="card" ng-repeat="pergunta in bind.perguntas">
+            <div class="list">
+                <div class="item item-text-wrap item-divider" ng-bind="pergunta.descricao"></div>
+                <ion-radio name="{{pergunta.codigo}}" ng-model="pergunta.checked" ng-value="resposta.codigo" ng-click="uncheck($event, pergunta, resposta)" ng-repeat="resposta in pergunta.respostas">{{resposta.descricao}}</ion-radio>
+            </div>
+        </div>
+    </ion-content>
+</ion-view>
+
+

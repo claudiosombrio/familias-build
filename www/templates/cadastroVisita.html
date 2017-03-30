@@ -1,5 +1,5 @@
-<!--<ion-view >-->
-    <ion-header-bar align-title="center" class="bar-stable" style="top: 0px;">
+<ion-view >
+    <ion-header-bar align-title="center" class="bar-stable">
         <button class="button icon-left ion-chevron-left" ng-if="verBotaoVoltar" on-tap="acaoVoltar()">Voltar</button>
         <h1 class="title">{{tituloPrincipal}}</h1>
         <button class="button icon-left ion-checkmark-round" ng-if="verBotaoSalvar" on-tap="acaoSalvar()">Salvar</button>
@@ -12,16 +12,20 @@
         <ion-tab title="Motivo" icon-on="ion-ios7-medkit" icon-off="ion-ios7-medkit" href="#/cadastroVisitas/{{bind.idDomicilio}}/cadastroVisitaTabs/tabMotivo">
             <ion-nav-view name="tab-Motivo"></ion-nav-view>
         </ion-tab>
-        
+
         <ion-tab title="Desfecho" icon-on="ion-ios7-flag" icon-off="ion-ios7-flag" href="#/cadastroVisitas/{{bind.idDomicilio}}/cadastroVisitaTabs/tabDesfecho">
             <ion-nav-view name="tab-Desfecho"></ion-nav-view>
         </ion-tab>
-        
+
         <ion-tab title="Indivíduos" badge="bind.notificacoes" badge-style="badge-assertive" icon-on="ion-ios7-people" icon-off="ion-ios7-people" href="#/cadastroVisitas/{{bind.idDomicilio}}/cadastroVisitaTabs/tabIndividuos">
             <ion-nav-view name="tab-Individuos"></ion-nav-view>
         </ion-tab>
-        
+
+        <ion-tab ng-if="bind.exibePerguntas" title="Pesquisa" icon-on="ion-compose" icon-off="ion-compose" href="#/cadastroVisitas/{{bind.idDomicilio}}/cadastroVisitaTabs/tabPesquisa">
+            <ion-nav-view name="tab-Pesquisa"></ion-nav-view>
+        </ion-tab>
+
     </ion-tabs>
-<!--</ion-view>-->
+</ion-view>
 
 
